@@ -43,6 +43,9 @@ montados automaticamente com grupo + integrante (ex.: `ALLDAY PROJECT Annie`) ou
 (solista) para idols solo. As páginas consultadas ficam em cache por até 24 horas. Se a Wikipédia
 limitar a busca, novas tentativas nessa fonte são pausadas por 1 hora. Se a foto vier errada ou
 faltar, use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
+No KProfiles, a busca prioriza a última foto listada no perfil. Para cards de grupo completo,
+fotos identificadas como sendo de integrantes individuais são deixadas de lado quando a lista
+de integrantes do perfil está disponível.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 

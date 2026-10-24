@@ -2,6 +2,7 @@ import os
 import re
 import time
 import tomllib
+import unicodedata
 from html import escape as esc
 from html.parser import HTMLParser
 from contextlib import closing
@@ -115,6 +116,26 @@ def icone_evento(nome):
 
 def _normalizar_nome_grupo(nome):
     return re.sub(r"[^a-z0-9]", "", str(nome).casefold())
+
+
+def _nome_em_texto_perfil(nome, texto):
+    tokens_nome = re.findall(
+        r"[a-z0-9]+",
+        unicodedata.normalize("NFKD", str(nome).casefold())
+        .encode("ascii", "ignore").decode(),
+    )
+    tokens_texto = re.findall(
+        r"[a-z0-9]+",
+        unicodedata.normalize("NFKD", str(texto).casefold())
+        .encode("ascii", "ignore").decode(),
+    )
+    if not tokens_nome:
+        return False
+    tamanho = len(tokens_nome)
+    return any(
+        tokens_texto[indice:indice + tamanho] == tokens_nome
+        for indice in range(len(tokens_texto) - tamanho + 1)
+    ) or (tamanho > 1 and "".join(tokens_nome) in tokens_texto)
 
 
 class _KProfilesBuscaParser(HTMLParser):
@@ -411,7 +432,7 @@ def _imagens_kprofiles(tipo, base, grupo):
     else:
         nome_busca = PESSOA_ALIAS_BUSCA.get(base.casefold(), base)
         perfis = [
-            (termo, nome_busca, "")
+            (termo, nome_busca, base)
             for termo in _termos_busca_imagem(tipo, base, grupo)
         ]
         if grupo and grupo.casefold() != "solo":
@@ -427,20 +448,33 @@ def _imagens_kprofiles(tipo, base, grupo):
         perfil_url = _url_perfil_kprofiles(consulta, esperado)
         if not perfil_url:
             continue
+        html = _buscar_html(perfil_url)
         parser = _ProfileImagesParser(content_only=True)
-        parser.feed(_buscar_html(perfil_url))
+        parser.feed(html)
+        membros_grupo = []
+        if tipo == "grupo":
+            try:
+                membros_grupo = _extrair_integrantes_kprofiles(html)
+            except ValueError:
+                pass
         alvos = {
             _normalizar_nome_grupo(membro),
             _normalizar_nome_grupo(PESSOA_ALIAS_BUSCA.get(membro.casefold(), "")),
         }
         alvos.discard("")
         imagens = []
+        imagens_com_nome_grupo = []
         for imagem, alt in parser.images:
             url = urljoin(perfil_url, imagem)
             if url.partition("?")[0].casefold().endswith(".svg"):
                 continue
             nome_arquivo = _normalizar_nome_grupo(url.rsplit("/", 1)[-1])
             texto_alt = _normalizar_nome_grupo(alt)
+            if tipo == "grupo" and any(
+                _nome_em_texto_perfil(integrante, f"{nome_arquivo} {alt}")
+                for integrante in membros_grupo
+            ):
+                continue
             if any(termo in nome_arquivo or termo in texto_alt
                    for termo in ("logo", "flag", "symbol", "signature", "map")):
                 continue
@@ -450,8 +484,15 @@ def _imagens_kprofiles(tipo, base, grupo):
                 continue
             if url not in imagens:
                 imagens.append(url)
+                if tipo == "grupo" and texto_alt and (
+                    _normalizar_nome_grupo(grupo) in texto_alt
+                ):
+                    imagens_com_nome_grupo.append(url)
         if imagens:
-            todas_imagens.extend(imagens)
+            if imagens_com_nome_grupo:
+                todas_imagens.extend(reversed(imagens_com_nome_grupo))
+            else:
+                todas_imagens.extend(reversed(imagens))
     return list(dict.fromkeys(todas_imagens))[:24]
 
 
