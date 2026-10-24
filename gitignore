@@ -1,0 +1,19 @@
+# Segredos (senha do banco, chaves de API) — NUNCA subir
+.streamlit/secrets.toml
+.env
+
+# Ambiente virtual e caches do Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Dados e fotos pessoais
+*.db
+*.sqlite3
+fotos/
+
+# Editor / sistema
+.vscode/
+.DS_Store
+Thumbs.db
