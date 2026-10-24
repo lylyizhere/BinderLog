@@ -58,11 +58,14 @@ apresentação do perfil confirma esse contexto; se não confirmar, o perfil é 
 mostrar uma descrição possivelmente errada. Resumos antigos são atualizados ao abrir o card, e o
 texto antigo não é mostrado se a atualização falhar. Os resumos são organizados em parágrafos:
 apresentação, integrantes e estreia dos grupos; para idols, a apresentação e fatos biográficos e de
-carreira relevantes encontrados no perfil. Nos cards de grupo completo, o nome de cada integrante
-é destacado e sua biografia aparece junto às áreas de eras e eventos. O texto é traduzido para
-português brasileiro pelo serviço MyMemory e salvo no banco; os parágrafos são mantidos e textos
-longos são enviados em trechos para respeitar o limite por consulta. O texto público do perfil é
-enviado ao serviço de tradução. A busca respeita o limitador e as pausas do KProfiles; em caso de
+carreira relevantes encontrados no perfil. Nos cards de grupo completo, os resumos dos integrantes
+são carregados individualmente pelo botão de cada pessoa, evitando muitas consultas ao abrir um
+card. O texto é traduzido para português brasileiro pelo serviço MyMemory e salvo no banco; os
+parágrafos são mantidos e textos longos são enviados em trechos para respeitar o limite por consulta.
+O texto público do perfil é enviado ao serviço de tradução. As traduções são espaçadas e trechos já
+traduzidos são reutilizados; se o serviço responder com código 429, novas traduções aguardam o
+prazo informado ou uma hora. Quando a tradução falha após a busca do perfil, o texto original em
+inglês continua visível na sessão. A busca respeita o limitador e as pausas do KProfiles; em caso de
 indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.

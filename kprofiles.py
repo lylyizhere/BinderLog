@@ -17,6 +17,23 @@ import streamlit as st
 VERSAO_CACHE_PERFIL = 2
 
 
+def _retry_after(headers, default):
+    valor = headers.get("Retry-After")
+    if valor:
+        try:
+            segundos = float(valor)
+            return max(0, segundos) if math.isfinite(segundos) else default
+        except ValueError:
+            try:
+                data = parsedate_to_datetime(valor)
+                if data.tzinfo is None:
+                    data = data.replace(tzinfo=timezone.utc)
+                return max(0, (data - datetime.now(timezone.utc)).total_seconds())
+            except (TypeError, ValueError, OverflowError):
+                pass
+    return default
+
+
 class KProfilesRateLimited(requests.RequestException):
     def __init__(self, status_code, retry_after):
         self.status_code = status_code
@@ -27,29 +44,21 @@ class KProfilesRateLimited(requests.RequestException):
         )
 
 
+class MyMemoryRateLimited(requests.RequestException):
+    def __init__(self, retry_after):
+        self.retry_after = retry_after
+        super().__init__(
+            "MyMemory limitou as traduções (429). As consultas foram pausadas por pelo "
+            f"menos {math.ceil(retry_after)} segundos."
+        )
+
+
 class _KProfilesRateLimiter:
     def __init__(self):
         self._lock = threading.Lock()
         self._next_request_at = 0
         self._cooldown_until = 0
         self._blocked_status = 429
-
-    @staticmethod
-    def _retry_after(headers, default):
-        valor = headers.get("Retry-After")
-        if valor:
-            try:
-                segundos = float(valor)
-                return max(0, segundos) if math.isfinite(segundos) else default
-            except ValueError:
-                try:
-                    data = parsedate_to_datetime(valor)
-                    if data.tzinfo is None:
-                        data = data.replace(tzinfo=timezone.utc)
-                    return max(0, (data - datetime.now(timezone.utc)).total_seconds())
-                except (TypeError, ValueError, OverflowError):
-                    pass
-        return default
 
     def get(self, url, params, headers, timeout):
         with self._lock:
@@ -69,7 +78,7 @@ class _KProfilesRateLimiter:
                 self._next_request_at = time.monotonic() + random.uniform(1.5, 2.5)
             if resposta.status_code in (403, 429):
                 padrao = 21600 if resposta.status_code == 403 else 3600
-                espera = self._retry_after(resposta.headers, padrao)
+                espera = _retry_after(resposta.headers, padrao)
                 self._blocked_status = resposta.status_code
                 self._cooldown_until = time.monotonic() + espera
                 raise KProfilesRateLimited(resposta.status_code, espera)
@@ -80,6 +89,45 @@ class _KProfilesRateLimiter:
 @st.cache_resource
 def _limitador_kprofiles():
     return _KProfilesRateLimiter()
+
+
+class _MyMemoryRateLimiter:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._next_request_at = 0
+        self._cooldown_until = 0
+
+    def get(self, url, params, headers, timeout):
+        with self._lock:
+            agora = time.monotonic()
+            if agora < self._cooldown_until:
+                raise MyMemoryRateLimited(self._cooldown_until - agora)
+            espera = self._next_request_at - agora
+            if espera > 0:
+                time.sleep(espera)
+            try:
+                resposta = requests.get(
+                    url, params=params, headers=headers, timeout=timeout
+                )
+            finally:
+                self._next_request_at = time.monotonic() + 1.5
+            if resposta.status_code == 429:
+                espera = _retry_after(resposta.headers, 3600)
+                self._cooldown_until = time.monotonic() + espera
+                raise MyMemoryRateLimited(espera)
+            resposta.raise_for_status()
+            return resposta
+
+    def pause(self, seconds):
+        with self._lock:
+            self._cooldown_until = max(
+                self._cooldown_until, time.monotonic() + seconds
+            )
+
+
+@st.cache_resource
+def _limitador_mymemory():
+    return _MyMemoryRateLimiter()
 
 
 def _normalizar_nome(nome):
@@ -463,6 +511,33 @@ def buscar_perfil_kprofiles(
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
+def _traduzir_trecho_ptbr(trecho):
+    resposta = _limitador_mymemory().get(
+        "https://api.mymemory.translated.net/get",
+        params={"q": trecho, "langpair": "en|pt-BR"},
+        headers={
+            "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
+        },
+        timeout=20,
+    )
+    dados = resposta.json()
+    if not isinstance(dados, dict):
+        raise ValueError("Resposta de tradução inválida.")
+    if str(dados.get("responseStatus")) == "429":
+        espera = _retry_after(resposta.headers, 3600)
+        _limitador_mymemory().pause(espera)
+        raise MyMemoryRateLimited(espera)
+    if dados.get("responseStatus") != 200:
+        detalhe = dados.get("responseDetails", "Resposta de tradução inválida.")
+        raise ValueError(f"Não foi possível traduzir a descrição: {detalhe}")
+    traducao = dados.get("responseData", {}).get("translatedText", "")
+    traducao = unescape(str(traducao)).strip()
+    if not traducao:
+        raise ValueError("O serviço de tradução retornou uma descrição vazia.")
+    return traducao
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
 def traduzir_descricao_ptbr(texto):
     if not texto.strip():
         raise ValueError("A descrição para tradução está vazia.")
@@ -485,28 +560,9 @@ def traduzir_descricao_ptbr(texto):
             trecho_atual = f"{trecho_atual} {palavra}".strip()
         if trecho_atual:
             trechos.append(trecho_atual)
-
-        traducoes = []
-        for trecho in trechos:
-            resposta = requests.get(
-                "https://api.mymemory.translated.net/get",
-                params={"q": trecho, "langpair": "en|pt-BR"},
-                headers={
-                    "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
-                },
-                timeout=20,
-            )
-            resposta.raise_for_status()
-            dados = resposta.json()
-            if not isinstance(dados, dict) or dados.get("responseStatus") != 200:
-                detalhe = dados.get("responseDetails", "Resposta de tradução inválida.")
-                raise ValueError(f"Não foi possível traduzir a descrição: {detalhe}")
-            traducao = dados.get("responseData", {}).get("translatedText", "")
-            traducao = unescape(str(traducao)).strip()
-            if not traducao:
-                raise ValueError("O serviço de tradução retornou uma descrição vazia.")
-            traducoes.append(traducao)
-        paragrafos_traduzidos.append(" ".join(traducoes))
+        paragrafos_traduzidos.append(
+            " ".join(_traduzir_trecho_ptbr(trecho) for trecho in trechos)
+        )
     return "\n\n".join(paragrafos_traduzidos)
 
 

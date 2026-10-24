@@ -15,6 +15,7 @@ import streamlit as st
 
 from kprofiles import (
     KProfilesRateLimited,
+    MyMemoryRateLimited,
     VERSAO_CACHE_PERFIL,
     buscar_imagens_kprofiles,
     buscar_integrantes_kprofiles,
@@ -388,7 +389,11 @@ def atualizar_descricao_card(card_id, idol, grupo):
         _termos_busca_imagem(tipo, base, grupo_busca),
         VERSAO_CACHE_PERFIL,
     )
-    traducao = traduzir_descricao_ptbr(perfil["descricao"])
+    try:
+        traducao = traduzir_descricao_ptbr(perfil["descricao"])
+    except (requests.RequestException, ValueError):
+        guardar_descricao_original("card", card_id, perfil["descricao"], perfil["url"])
+        raise
     run(
         "UPDATE colecao SET descricao_pt=?, descricao_url=?, descricao_versao=? WHERE id=?",
         (traducao, perfil["url"], VERSAO_DESCRICAO, int(card_id)),
@@ -406,13 +411,29 @@ def atualizar_descricao_membro(membro_id, nome, grupo):
         _termos_busca_imagem(tipo, base, grupo_busca),
         VERSAO_CACHE_PERFIL,
     )
-    traducao = traduzir_descricao_ptbr(perfil["descricao"])
+    try:
+        traducao = traduzir_descricao_ptbr(perfil["descricao"])
+    except (requests.RequestException, ValueError):
+        guardar_descricao_original(
+            "membro", membro_id, perfil["descricao"], perfil["url"]
+        )
+        raise
     run(
         "UPDATE colecao_membros SET descricao_pt=?, descricao_url=?, descricao_versao=? "
         "WHERE id=?",
         (traducao, perfil["url"], VERSAO_DESCRICAO, int(membro_id)),
     )
     return traducao, perfil["url"]
+
+
+def guardar_descricao_original(tipo, id_, descricao, url):
+    descricoes = st.session_state.setdefault("descricoes_originais", {})
+    descricoes[(tipo, int(id_))] = (descricao, url)
+
+
+def descricao_original(tipo, id_):
+    descricoes = st.session_state.setdefault("descricoes_originais", {})
+    return descricoes.get((tipo, int(id_)))
 
 
 def _tentativas_descricao():
@@ -1257,6 +1278,7 @@ if card_selecionado:
 
     descricao_card = card["descricao_pt"]
     fonte_descricao = card["descricao_url"]
+    descricao_card_em_ingles = False
     descricao_card_desatualizada = (
         pd.isna(card["descricao_versao"])
         or int(card["descricao_versao"]) < VERSAO_DESCRICAO
@@ -1264,6 +1286,13 @@ if card_selecionado:
     if descricao_card_desatualizada:
         descricao_card = None
         fonte_descricao = None
+    original_card = descricao_original("card", card_selecionado)
+    if (
+        (pd.isna(descricao_card) or not str(descricao_card).strip())
+        and original_card
+    ):
+        descricao_card, fonte_descricao = original_card
+        descricao_card_em_ingles = True
     if (
         pd.isna(descricao_card) or not str(descricao_card).strip()
         or descricao_card_desatualizada
@@ -1274,12 +1303,19 @@ if card_selecionado:
                     int(card_selecionado), card["idol"], card["grupo"]
                 )
             registrar_sucesso_descricao("card", card_selecionado)
+        except MyMemoryRateLimited as erro:
+            st.warning(f"A tradução está temporariamente pausada: {erro}")
+            registrar_falha_descricao("card", card_selecionado)
         except KProfilesRateLimited as erro:
             st.warning(str(erro))
             registrar_falha_descricao("card", card_selecionado)
         except (requests.RequestException, ValueError) as erro:
             st.error(f"Não foi possível carregar a descrição: {erro}")
             registrar_falha_descricao("card", card_selecionado)
+        original_card = descricao_original("card", card_selecionado)
+        if original_card:
+            descricao_card, fonte_descricao = original_card
+            descricao_card_em_ingles = True
 
     coluna_foto, coluna_sobre = st.columns([1, 2], gap="large", vertical_alignment="top")
     with coluna_foto:
@@ -1292,7 +1328,12 @@ if card_selecionado:
         if pd.notna(descricao_card) and str(descricao_card).strip():
             st.write(str(descricao_card))
             if pd.notna(fonte_descricao) and fonte_descricao:
-                st.caption(f"Fonte: [KProfiles]({fonte_descricao}) · tradução automática")
+                texto_fonte = (
+                    "texto original em inglês"
+                    if descricao_card_em_ingles
+                    else "tradução automática"
+                )
+                st.caption(f"Fonte: [KProfiles]({fonte_descricao}) · {texto_fonte}")
         else:
             st.caption("O perfil ainda não tem um resumo disponível.")
 
@@ -1361,10 +1402,10 @@ if card_selecionado:
             else:
                 ordem_membros = list(membros.itertuples())
 
-            pausa_descricao_membros = False
             for membro in ordem_membros:
                 descricao_membro = membro.descricao_pt
                 fonte_membro = membro.descricao_url
+                descricao_membro_em_ingles = False
                 descricao_membro_desatualizada = (
                     pd.isna(membro.descricao_versao)
                     or int(membro.descricao_versao) < VERSAO_DESCRICAO
@@ -1372,35 +1413,56 @@ if card_selecionado:
                 if descricao_membro_desatualizada:
                     descricao_membro = None
                     fonte_membro = None
+                original_membro = descricao_original("membro", membro.id)
                 if (
-                    (
-                        pd.isna(descricao_membro)
-                        or not str(descricao_membro).strip()
-                        or descricao_membro_desatualizada
-                    )
-                    and not pausa_descricao_membros
-                    and descricao_pode_carregar("membro", membro.id)
+                    (pd.isna(descricao_membro) or not str(descricao_membro).strip())
+                    and original_membro
                 ):
-                    try:
-                        with st.spinner(f"Carregando resumo de {membro.nome}..."):
-                            descricao_membro, fonte_membro = atualizar_descricao_membro(
-                                int(membro.id), membro.nome, card["grupo"]
-                            )
-                        registrar_sucesso_descricao("membro", membro.id)
-                    except KProfilesRateLimited as erro:
-                        registrar_falha_descricao("membro", membro.id)
-                        pausa_descricao_membros = True
-                        st.warning(str(erro))
-                    except (requests.RequestException, ValueError) as erro:
-                        registrar_falha_descricao("membro", membro.id)
-                        st.caption(f"Resumo de {membro.nome} indisponível: {erro}")
-                elif pd.notna(descricao_membro) and str(descricao_membro).strip():
-                    fonte_membro = membro.descricao_url
+                    descricao_membro, fonte_membro = original_membro
+                    descricao_membro_em_ingles = True
+                st.markdown(f"**{esc(str(membro.nome))}**")
+                resumo_vazio = (
+                    pd.isna(descricao_membro) or not str(descricao_membro).strip()
+                )
+                pode_buscar = descricao_pode_carregar("membro", membro.id)
+                if resumo_vazio and pode_buscar:
+                    if st.button(
+                        f"Carregar resumo de {membro.nome}",
+                        key=f"carregar_resumo_membro_{membro.id}",
+                    ):
+                        try:
+                            with st.spinner(f"Carregando resumo de {membro.nome}..."):
+                                descricao_membro, fonte_membro = atualizar_descricao_membro(
+                                    int(membro.id), membro.nome, card["grupo"]
+                                )
+                            registrar_sucesso_descricao("membro", membro.id)
+                        except MyMemoryRateLimited as erro:
+                            registrar_falha_descricao("membro", membro.id)
+                            st.warning(f"A tradução está temporariamente pausada: {erro}")
+                        except KProfilesRateLimited as erro:
+                            registrar_falha_descricao("membro", membro.id)
+                            st.warning(str(erro))
+                        except (requests.RequestException, ValueError) as erro:
+                            registrar_falha_descricao("membro", membro.id)
+                            st.caption(f"Resumo de {membro.nome} indisponível: {erro}")
+                        original_membro = descricao_original("membro", membro.id)
+                        if original_membro:
+                            descricao_membro, fonte_membro = original_membro
+                            descricao_membro_em_ingles = True
+                elif resumo_vazio:
+                    st.caption(
+                        f"Resumo de {membro.nome} temporariamente indisponível. "
+                        "Tente novamente mais tarde."
+                    )
                 if pd.notna(descricao_membro) and str(descricao_membro).strip():
-                    st.markdown(f"**{esc(str(membro.nome))}**")
                     st.markdown(str(descricao_membro))
                     if pd.notna(fonte_membro) and fonte_membro:
-                        st.caption(f"Fonte: [KProfiles]({fonte_membro}) · tradução automática")
+                        texto_fonte = (
+                            "texto original em inglês"
+                            if descricao_membro_em_ingles
+                            else "tradução automática"
+                        )
+                        st.caption(f"Fonte: [KProfiles]({fonte_membro}) · {texto_fonte}")
                 renderizar_eras_eventos(
                     int(card_selecionado), int(membro.id), membro.nome
                 )
