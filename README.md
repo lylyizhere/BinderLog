@@ -45,7 +45,8 @@ limitar a busca, novas tentativas nessa fonte são pausadas por 1 hora. Se a fot
 faltar, use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
 No KProfiles, a busca prioriza a última foto listada no perfil. Para cards de grupo completo,
 fotos identificadas como sendo de integrantes individuais são deixadas de lado quando a lista
-de integrantes do perfil está disponível.
+de integrantes do perfil está disponível. A busca e a extração de dados do KProfiles ficam em
+`kprofiles.py`, separadas da interface e das demais integrações.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 
