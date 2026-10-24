@@ -563,8 +563,95 @@ def _imagens_google(tipo, base, grupo):
     return imagens
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def _imagens_wikipedia(tipo, base, grupo):
+    alvo = grupo if tipo == "grupo" else base
+    termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
+    cabecalhos = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
+
+    resposta = requests.get(
+        "https://en.wikipedia.org/w/api.php",
+        params={
+            "action": "query",
+            "list": "search",
+            "srsearch": termo,
+            "srlimit": 5,
+            "format": "json",
+        },
+        headers=cabecalhos,
+        timeout=20,
+    )
+    resposta.raise_for_status()
+    dados = resposta.json()
+    if not isinstance(dados, dict):
+        raise ValueError("A API da Wikipédia retornou uma resposta inválida.")
+    resultados = (dados.get("query") or {}).get("search", [])
+    if not isinstance(resultados, list):
+        raise ValueError("A API da Wikipédia retornou resultados em formato inválido.")
+    alvo_normalizado = _normalizar_nome_grupo(alvo)
+    titulo = next(
+        (
+            item.get("title", "")
+            for item in resultados
+            if isinstance(item, dict)
+            and alvo_normalizado
+            and alvo_normalizado in _normalizar_nome_grupo(item.get("title", ""))
+        ),
+        None,
+    )
+    if not titulo:
+        return []
+
+    imagens = []
+    consultas = (
+        {
+            "action": "query",
+            "titles": titulo,
+            "prop": "pageimages",
+            "piprop": "thumbnail",
+            "pithumbsize": 500,
+            "format": "json",
+        },
+        {
+            "action": "query",
+            "generator": "images",
+            "titles": titulo,
+            "gimlimit": 40,
+            "prop": "imageinfo",
+            "iiprop": "url|mime",
+            "iiurlwidth": 500,
+            "format": "json",
+        },
+    )
+    for parametros in consultas:
+        resposta = requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            params=parametros,
+            headers=cabecalhos,
+            timeout=20,
+        )
+        resposta.raise_for_status()
+        dados = resposta.json()
+        if not isinstance(dados, dict):
+            raise ValueError("A API da Wikipédia retornou uma resposta inválida.")
+        paginas = (dados.get("query") or {}).get("pages") or {}
+        for pagina in paginas.values():
+            if not isinstance(pagina, dict):
+                continue
+            thumbnail = pagina.get("thumbnail", {})
+            url = thumbnail.get("source") if isinstance(thumbnail, dict) else None
+            info = (pagina.get("imageinfo") or [{}])[0]
+            if not url and isinstance(info, dict):
+                if info.get("mime") not in ("image/jpeg", "image/png"):
+                    continue
+                url = info.get("thumburl") or info.get("url")
+            if isinstance(url, str) and url.startswith("https://") and url not in imagens:
+                imagens.append(url)
+    return imagens[:12]
+
+
 def buscar_candidatas(tipo, base, grupo, usar_kpopping=True, usar_google=True):
-    """Busca imagens em KProfiles, kpopping.com e Google, nessa ordem."""
+    """Busca imagens em KProfiles, kpopping.com, Google e Wikipedia, nessa ordem."""
     erros = []
     try:
         candidatas = _imagens_kprofiles(tipo, base, grupo)
@@ -605,6 +692,13 @@ def buscar_candidatas(tipo, base, grupo, usar_kpopping=True, usar_google=True):
             candidatas = []
         if candidatas:
             return list(dict.fromkeys(candidatas))
+    try:
+        candidatas = _imagens_wikipedia(tipo, base, grupo)
+    except (requests.RequestException, ValueError, KeyError, TypeError) as erro:
+        erros.append(f"Wikipedia: {erro}")
+        candidatas = []
+    if candidatas:
+        return list(dict.fromkeys(candidatas))
     if erros:
         raise RuntimeError("Não foi possível pesquisar imagens. " + " | ".join(erros))
     return []
@@ -1245,7 +1339,7 @@ with tab_fotos:
     if df_all.empty:
         st.info("Importe ou adicione idols primeiro.")
     else:
-        st.caption("Fontes das fotos: KProfiles, kpopping.com e Google como última alternativa. "
+        st.caption("Fontes das fotos: KProfiles, kpopping.com, Google e Wikipédia, nessa ordem. "
                    "As buscas ficam em cache por até 24 horas.")
         if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
             st.info("kpopping.com recusou as buscas recentemente; a fonte está pausada "
