@@ -94,6 +94,16 @@ def init_db():
         image_url TEXT,
         UNIQUE (bot, grupo, idol))""")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS image_url TEXT")
+    run("""CREATE TABLE IF NOT EXISTS colecao_eras (
+        id SERIAL PRIMARY KEY,
+        colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
+        nome TEXT NOT NULL,
+        descricao TEXT NOT NULL DEFAULT '')""")
+    run("""CREATE TABLE IF NOT EXISTS colecao_eventos (
+        id SERIAL PRIMARY KEY,
+        colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
+        nome TEXT NOT NULL,
+        descricao TEXT NOT NULL DEFAULT '')""")
     try:
         run("UPDATE colecao SET idol=? WHERE idol IN ('Todos os membros', '-')",
             (GRUPO_COMPLETO,))
@@ -368,6 +378,7 @@ header[data-testid="stHeader"]{background:transparent}
 [class*="st-key-card_"] [data-testid="stHorizontalBlock"]{padding:0 14px;flex-wrap:nowrap;gap:.3rem}
 [class*="st-key-card_"] [data-testid="stColumn"]{min-width:0}
 [class*="st-key-card_"] button{width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:#1b2036;border:1px solid var(--line);color:#e8eaf2}
+[class*="st-key-detalhes_"] button{width:100%;height:auto;min-height:38px;padding:8px 12px;border-radius:10px;color:#e8eaf2}
 .ph{position:relative;aspect-ratio:3/4;overflow:hidden;background:#1a1f35}
 .ph img{width:100%;height:100%;object-fit:cover;object-position:top}
 .ph.empty{display:grid;place-items:center;background:linear-gradient(135deg,var(--c1),var(--c2))}
@@ -425,6 +436,14 @@ def mostrar_mais():
     st.session_state["n_cards"] = st.session_state.get("n_cards", 12) + 12
 
 
+def abrir_detalhes(id_):
+    st.session_state["card_selecionado"] = int(id_)
+
+
+def voltar_painel():
+    st.session_state.pop("card_selecionado", None)
+
+
 @st.dialog("Adicionar idol / bot")
 def dialog_adicionar():
     with st.form("novo", clear_on_submit=True):
@@ -459,6 +478,73 @@ df_all["faltam"] = df_all["total"] - df_all["possuo"]
 df_all["url_foto"] = df_all["image_url"].map(_url)
 ORDENS = ["Idol (A–Z)", "Grupo (A–Z)", "Menor progresso", "Maior progresso",
           "Mais cartas faltando", "Prioridade"]
+
+# ---------------------------------------------------------------- Detalhes do card
+card_selecionado = st.session_state.get("card_selecionado")
+if card_selecionado is not None:
+    selecionado = df_all[df_all["id"] == int(card_selecionado)]
+    if selecionado.empty:
+        st.warning("Este card não está mais na coleção.")
+        st.button("← Voltar ao painel", on_click=voltar_painel)
+        st.stop()
+
+    card = selecionado.iloc[0]
+    st.button("← Voltar ao painel", on_click=voltar_painel)
+    st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
+    st.caption(f'{card["grupo"]} · Bot {card["bot"]}')
+
+    if card["url_foto"]:
+        st.image(card["url_foto"], width=180)
+
+    col_eras, col_eventos = st.columns(2, gap="large")
+    with col_eras:
+        st.subheader("Eras")
+        with st.form(f"form_era_{card_selecionado}", clear_on_submit=True):
+            nome_era = st.text_input("Nome da era")
+            descricao_era = st.text_area("Descrição (opcional)")
+            enviar_era = st.form_submit_button("Adicionar era", type="primary")
+        if enviar_era:
+            if not nome_era.strip():
+                st.error("Informe o nome da era.")
+            else:
+                run("INSERT INTO colecao_eras (colecao_id, nome, descricao) VALUES (?,?,?)",
+                    (int(card_selecionado), nome_era.strip(), descricao_era.strip()))
+                st.rerun()
+
+        eras = q("SELECT nome, descricao FROM colecao_eras WHERE colecao_id=? ORDER BY id",
+                 (int(card_selecionado),))
+        if eras.empty:
+            st.info("Nenhuma era adicionada ainda.")
+        else:
+            for era in eras.itertuples():
+                st.markdown(f"**{esc(era.nome)}**")
+                if era.descricao:
+                    st.text(era.descricao)
+
+    with col_eventos:
+        st.subheader("Eventos")
+        with st.form(f"form_evento_{card_selecionado}", clear_on_submit=True):
+            nome_evento = st.text_input("Nome do evento")
+            descricao_evento = st.text_area("Descrição (opcional)")
+            enviar_evento = st.form_submit_button("Adicionar evento", type="primary")
+        if enviar_evento:
+            if not nome_evento.strip():
+                st.error("Informe o nome do evento.")
+            else:
+                run("INSERT INTO colecao_eventos (colecao_id, nome, descricao) VALUES (?,?,?)",
+                    (int(card_selecionado), nome_evento.strip(), descricao_evento.strip()))
+                st.rerun()
+
+        eventos = q("SELECT nome, descricao FROM colecao_eventos WHERE colecao_id=? ORDER BY id",
+                    (int(card_selecionado),))
+        if eventos.empty:
+            st.info("Nenhum evento adicionado ainda.")
+        else:
+            for evento in eventos.itertuples():
+                st.markdown(f"**{esc(evento.nome)}**")
+                if evento.descricao:
+                    st.text(evento.descricao)
+    st.stop()
 
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
@@ -531,6 +617,8 @@ with tab_painel:
                         c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
                                   disabled=bool(r.possuo >= r.total))
                         c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
+                        st.button("Eras e eventos", key=f"detalhes_{r.id}", width="stretch",
+                                  on_click=abrir_detalhes, args=(r.id,))
             if len(vis) > n:
                 st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
                           width="stretch")
