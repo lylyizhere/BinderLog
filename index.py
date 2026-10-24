@@ -1149,21 +1149,21 @@ with tab_painel:
 
         st.subheader("Coleções mais avançadas por bot")
         bots_com_colecao = sorted(df_all["bot"].dropna().unique())
-        for inicio in range(0, len(bots_com_colecao), 3):
-            colunas_bots = st.columns(3, gap="large")
-            for coluna, bot in zip(colunas_bots, bots_com_colecao[inicio:inicio + 3]):
+        for bot in bots_com_colecao:
+            st.markdown(f"### {esc(bot)}")
+            destaques = (
+                df_all[df_all["bot"] == bot]
+                .sort_values(
+                    ["progresso", "faltam", "idol"],
+                    ascending=[False, True, True],
+                    kind="stable",
+                )
+                .head(3)
+            )
+            colunas_colecoes = st.columns(3, gap="medium")
+            for coluna, destaque in zip(colunas_colecoes, destaques.itertuples()):
                 with coluna:
-                    st.markdown(f"### {esc(bot)}")
-                    destaques = (
-                        df_all[df_all["bot"] == bot]
-                        .sort_values(
-                            ["progresso", "faltam", "idol"],
-                            ascending=[False, True, True],
-                            kind="stable",
-                        )
-                        .head(3)
-                    )
-                    for destaque in destaques.itertuples():
+                    with st.container(border=True):
                         nome = (
                             destaque.grupo
                             if destaque.idol == GRUPO_COMPLETO
@@ -1172,12 +1172,11 @@ with tab_painel:
                         if destaque.idol != GRUPO_COMPLETO and destaque.grupo:
                             nome = f"{nome} · {destaque.grupo}"
                         progresso = max(0.0, min(100.0, float(destaque.progresso)))
-                        st.markdown(
-                            f"**{esc(nome)}** · {progresso:.0f}%"
-                        )
+                        st.markdown(f"**{esc(nome)}**")
                         st.progress(progresso / 100)
                         st.caption(
-                            f"{int(destaque.possuo)} / {int(destaque.total)} cartas"
+                            f"{progresso:.0f}% · {int(destaque.possuo)} / "
+                            f"{int(destaque.total)} cartas"
                         )
 
         esq, dir_ = st.columns([1, 3], gap="large")
