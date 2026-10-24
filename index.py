@@ -6,7 +6,7 @@ from html import escape as esc
 from html.parser import HTMLParser
 from contextlib import closing
 from pathlib import Path
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import urljoin
 
 import pandas as pd
 import psycopg2
@@ -298,48 +298,8 @@ def contexto(idol, grupo):
     return ("solista" if solo else "pessoa"), base, g
 
 
-class KpoppingBlocked(Exception):
-    pass
-
-
 class WikipediaRateLimited(Exception):
     pass
-
-
-class _SiteBuscaParser(HTMLParser):
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.links = []
-        self._link = None
-
-    def handle_starttag(self, tag, attrs):
-        atributos = dict(attrs)
-        if tag == "a":
-            self._link = {
-                "href": atributos.get("href", ""),
-                "title": atributos.get("title", ""),
-                "text": [],
-            }
-        elif tag == "img":
-            self.links.append({
-                "image": atributos.get("data-src")
-                or atributos.get("data-lazy-src")
-                or atributos.get("src", ""),
-                "alt": atributos.get("alt", ""),
-            })
-
-    def handle_data(self, data):
-        if self._link is not None:
-            self._link["text"].append(data)
-
-    def handle_endtag(self, tag):
-        if tag == "a" and self._link is not None:
-            self.links.append({
-                "href": self._link["href"],
-                "title": self._link["title"],
-                "text": " ".join(" ".join(self._link["text"]).split()),
-            })
-            self._link = None
 
 
 class _ProfileImagesParser(HTMLParser):
@@ -394,8 +354,6 @@ def _buscar_html(url, parametros=()):
         headers={"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"},
         timeout=20,
     )
-    if "kpopping.com" in url and resposta.status_code == 403:
-        raise KpoppingBlocked("kpopping.com recusou a busca (HTTP 403).")
     resposta.raise_for_status()
     return resposta.text
 
@@ -463,49 +421,6 @@ def _imagens_kprofiles(tipo, base, grupo):
         if imagens:
             todas_imagens.extend(imagens)
     return list(dict.fromkeys(todas_imagens))[:24]
-
-
-def _slug_site(nome):
-    slug = re.sub(r"[^a-z0-9]+", "-", str(nome).casefold()).strip("-")
-    return quote_plus(slug)
-
-
-def _imagens_kpopping(tipo, base, grupo):
-    termo = grupo if tipo == "grupo" else base
-    slug = _slug_site(termo)
-    if tipo == "grupo":
-        perfil_urls = [f"https://kpopping.com/profiles/group/{slug}"]
-    else:
-        busca_html = _buscar_html(
-            "https://kpopping.com/search", (("query", f"{termo} {grupo}".strip()),)
-        )
-        busca = _SiteBuscaParser()
-        busca.feed(busca_html)
-        alvo = _normalizar_nome_grupo(base)
-        perfil_urls = [
-            urljoin("https://kpopping.com", item.get("href", ""))
-            for item in busca.links
-            if "/profiles/" in item.get("href", "")
-            and alvo in _normalizar_nome_grupo(
-                item.get("href", "") + item.get("title", "") + item.get("text", "")
-            )
-        ]
-
-    for perfil_url in dict.fromkeys(perfil_urls):
-        parser = _ProfileImagesParser()
-        parser.feed(_buscar_html(perfil_url))
-        alvo = _normalizar_nome_grupo(base if tipo != "grupo" else grupo)
-        imagens = []
-        for imagem, alt in parser.images:
-            url = urljoin(perfil_url, imagem)
-            material = _normalizar_nome_grupo(url + alt)
-            if alvo and alvo not in material:
-                continue
-            if url not in imagens:
-                imagens.append(url)
-        if imagens:
-            return imagens[:12]
-    return []
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -616,22 +531,14 @@ def _imagens_wikipedia(tipo, base, grupo):
     return imagens[:12]
 
 
-def buscar_candidatas(tipo, base, grupo, usar_kpopping=True):
-    """Busca imagens em KProfiles, kpopping.com e Wikipedia, nessa ordem."""
+def buscar_candidatas(tipo, base, grupo):
+    """Combina imagens encontradas no KProfiles e na Wikipedia."""
     candidatas = []
     erros = []
     try:
         candidatas.extend(_imagens_kprofiles(tipo, base, grupo))
     except (requests.RequestException, ValueError) as erro:
         erros.append(f"KProfiles: {erro}")
-    if usar_kpopping:
-        try:
-            candidatas.extend(_imagens_kpopping(tipo, base, grupo))
-        except KpoppingBlocked as erro:
-            pausar_kpopping_se_bloqueado(erro)
-            erros.append(f"kpopping.com: {erro}")
-        except (requests.RequestException, ValueError) as erro:
-            erros.append(f"kpopping.com: {erro}")
     if time.time() >= st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
         try:
             candidatas.extend(_imagens_wikipedia(tipo, base, grupo))
@@ -645,12 +552,6 @@ def buscar_candidatas(tipo, base, grupo, usar_kpopping=True):
     if erros:
         raise RuntimeError("Não foi possível pesquisar imagens. " + " | ".join(erros))
     return []
-
-
-def pausar_kpopping_se_bloqueado(erro):
-    if (isinstance(erro, KpoppingBlocked)
-            or "kpopping.com recusou a busca (HTTP 403)" in str(erro)):
-        st.session_state["kpopping_fotos_cooldown_ate"] = time.time() + 86400
 
 
 def escolher(cands, usadas, atual=None):
@@ -667,10 +568,7 @@ def escolher(cands, usadas, atual=None):
 def trocar_foto(id_, idol, grupo, atual=None):
     """Busca e salva uma foto diferente das já usadas em outros cards."""
     tipo, base, g = contexto(idol, grupo)
-    usar_kpopping = time.time() >= st.session_state.get(
-        "kpopping_fotos_cooldown_ate", 0
-    )
-    cands = buscar_candidatas(tipo, base, g, usar_kpopping)
+    cands = buscar_candidatas(tipo, base, g)
     outras = q("SELECT image_url FROM colecao WHERE id != ? AND image_url IS NOT NULL", (int(id_),))
     nova = escolher(cands, set(outras["image_url"]), atual)
     if nova:
@@ -1308,11 +1206,8 @@ with tab_fotos:
     if df_all.empty:
         st.info("Importe ou adicione idols primeiro.")
     else:
-        st.caption("Fontes das fotos: KProfiles, kpopping.com e Wikipédia. "
+        st.caption("Fontes das fotos: KProfiles e Wikipédia. "
                    "As fontes são combinadas e as buscas ficam em cache por até 24 horas.")
-        if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
-            st.info("kpopping.com recusou as buscas recentemente; a fonte está pausada "
-                    "por 24 horas. O KProfiles continua disponível.")
         if time.time() < st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
             st.info("A Wikipédia limitou as buscas recentemente; essa fonte está pausada "
                     "por 1 hora.")
@@ -1342,7 +1237,6 @@ with tab_fotos:
                     else:
                         falhou.append(f"{r.idol} ({r.grupo})")
                 except Exception as e:
-                    pausar_kpopping_se_bloqueado(e)
                     falhou.append(f"{r.idol} ({r.grupo}): {e}")
                 barra_p.progress(i / len(alvo))
                 time.sleep(0.2)
@@ -1371,7 +1265,6 @@ with tab_fotos:
                     else:
                         st.warning("Não achei outra foto. Cole uma URL abaixo.")
                 except Exception as e:
-                    pausar_kpopping_se_bloqueado(e)
                     st.error(str(e))
             nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
             if st.button("Salvar URL", key="f_salva") and _url(nova):
