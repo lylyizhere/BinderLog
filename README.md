@@ -38,10 +38,11 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
 ## Fotos dos idols
 
 O botão **Buscar fotos** (aba Fotos) procura imagens em KProfiles e Wikipédia, combina as
-candidatas para permitir fotos diferentes do mesmo idol em cards separados e mantém as páginas
-consultadas em cache por até 24 horas para reduzir requisições. Se a Wikipédia limitar a busca,
-novas tentativas nessa fonte são pausadas por 1 hora. Se a foto vier errada ou faltar, use
-**🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
+candidatas para permitir fotos diferentes do mesmo idol em cards separados. Os termos são
+montados automaticamente com grupo + integrante (ex.: `ALLDAY PROJECT Annie`) ou com `Soloist`
+(solista) para idols solo. As páginas consultadas ficam em cache por até 24 horas. Se a Wikipédia
+limitar a busca, novas tentativas nessa fonte são pausadas por 1 hora. Se a foto vier errada ou
+faltar, use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 

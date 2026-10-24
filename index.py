@@ -298,6 +298,16 @@ def contexto(idol, grupo):
     return ("solista" if solo else "pessoa"), base, g
 
 
+def _termos_busca_imagem(tipo, base, grupo):
+    if tipo == "grupo":
+        return [grupo]
+    if tipo == "solista":
+        termos = [f"{base} Soloist", base]
+    else:
+        termos = [f"{grupo} {base}", f"{base} {grupo}", base]
+    return list(dict.fromkeys(termo.strip() for termo in termos if termo.strip()))
+
+
 class WikipediaRateLimited(Exception):
     pass
 
@@ -392,12 +402,20 @@ def _imagens_kprofiles(tipo, base, grupo):
     if tipo == "grupo":
         perfis = [(grupo, grupo, "")]
     else:
-        perfis = [(base, base, "")]
+        perfis = [
+            (termo, base, "")
+            for termo in _termos_busca_imagem(tipo, base, grupo)
+        ]
         if grupo and grupo.casefold() != "solo":
             perfis.append((grupo, grupo, base))
 
     todas_imagens = []
+    consultas_feitas = set()
     for consulta, esperado, membro in perfis:
+        chave_consulta = (consulta.casefold(), esperado.casefold(), membro.casefold())
+        if chave_consulta in consultas_feitas:
+            continue
+        consultas_feitas.add(chave_consulta)
         perfil_url = _url_perfil_kprofiles(consulta, esperado)
         if not perfil_url:
             continue
@@ -426,12 +444,11 @@ def _imagens_kprofiles(tipo, base, grupo):
 @st.cache_data(ttl=86400, show_spinner=False)
 def _imagens_wikipedia(tipo, base, grupo):
     alvo = grupo if tipo == "grupo" else base
-    termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
     cabecalhos = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
 
     alvo_normalizado = _normalizar_nome_grupo(alvo)
     titulo = None
-    for consulta in dict.fromkeys((termo, alvo)):
+    for consulta in _termos_busca_imagem(tipo, base, grupo):
         resposta = requests.get(
             "https://en.wikipedia.org/w/api.php",
             params={
