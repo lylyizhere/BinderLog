@@ -302,10 +302,6 @@ class KpoppingBlocked(Exception):
     pass
 
 
-class GoogleQuotaExceeded(Exception):
-    pass
-
-
 class _SiteBuscaParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -496,72 +492,6 @@ def _imagens_kpopping(tipo, base, grupo):
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def _imagens_google(tipo, base, grupo):
-    chave = _secret("GOOGLE_API_KEY")
-    mecanismo = _secret("GOOGLE_CSE_ID")
-    if not chave or not mecanismo:
-        return []
-
-    termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
-    resposta = requests.get(
-        "https://www.googleapis.com/customsearch/v1",
-        params={
-            "key": chave,
-            "cx": mecanismo,
-            "q": f"{termo} kpop",
-            "searchType": "image",
-            "num": 10,
-            "safe": "active",
-        },
-        timeout=20,
-    )
-    try:
-        dados = resposta.json()
-    except ValueError:
-        if resposta.status_code >= 400:
-            raise ValueError(
-                f"Google Custom Search respondeu HTTP {resposta.status_code}."
-            )
-        raise ValueError("Google Custom Search retornou uma resposta inválida.")
-    if not isinstance(dados, dict):
-        raise ValueError("Google Custom Search retornou uma resposta em formato inválido.")
-
-    if resposta.status_code in (403, 429):
-        erro_api = dados.get("error", {})
-        motivos = {
-            str(item.get("reason", "")).casefold()
-            for item in erro_api.get("errors", [])
-            if isinstance(item, dict)
-        }
-        motivos_cota = {
-            "dailylimitexceeded",
-            "ratelimitexceeded",
-            "userratelimitexceeded",
-            "quotaexceeded",
-        }
-        if resposta.status_code == 429 or motivos & motivos_cota:
-            raise GoogleQuotaExceeded(
-                "Google Custom Search atingiu o limite de requisições (HTTP "
-                f"{resposta.status_code})."
-            )
-
-    if resposta.status_code >= 400:
-        raise ValueError(f"Google Custom Search respondeu HTTP {resposta.status_code}.")
-    itens = dados.get("items", [])
-    if not isinstance(itens, list):
-        raise ValueError("Google Custom Search retornou resultados em formato inválido.")
-    imagens = []
-    for item in itens:
-        if not isinstance(item, dict):
-            continue
-        url = item.get("link", "")
-        if isinstance(url, str) and url.startswith(("https://", "http://")):
-            if url not in imagens:
-                imagens.append(url)
-    return imagens
-
-
-@st.cache_data(ttl=86400, show_spinner=False)
 def _imagens_wikipedia(tipo, base, grupo):
     alvo = grupo if tipo == "grupo" else base
     termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
@@ -648,8 +578,8 @@ def _imagens_wikipedia(tipo, base, grupo):
     return imagens[:12]
 
 
-def buscar_candidatas(tipo, base, grupo, usar_kpopping=True, usar_google=True):
-    """Busca imagens em KProfiles, kpopping.com, Google e Wikipedia, nessa ordem."""
+def buscar_candidatas(tipo, base, grupo, usar_kpopping=True):
+    """Busca imagens em KProfiles, kpopping.com e Wikipedia, nessa ordem."""
     erros = []
     try:
         candidatas = _imagens_kprofiles(tipo, base, grupo)
@@ -670,26 +600,6 @@ def buscar_candidatas(tipo, base, grupo, usar_kpopping=True, usar_google=True):
             candidatas = []
         if candidatas:
             return list(dict.fromkeys(candidatas))
-    if usar_google:
-        try:
-            candidatas = _imagens_google(tipo, base, grupo)
-        except GoogleQuotaExceeded as erro:
-            detalhes = " | ".join(erros)
-            mensagem = f"Google Custom Search: {erro}"
-            if detalhes:
-                mensagem = f"{detalhes} | {mensagem}"
-            raise GoogleQuotaExceeded(mensagem) from erro
-        except requests.RequestException as erro:
-            erros.append(
-                "Google Custom Search: falha de comunicação "
-                f"({type(erro).__name__})."
-            )
-            candidatas = []
-        except ValueError as erro:
-            erros.append(f"Google Custom Search: {erro}")
-            candidatas = []
-        if candidatas:
-            return list(dict.fromkeys(candidatas))
     try:
         candidatas = _imagens_wikipedia(tipo, base, grupo)
     except (requests.RequestException, ValueError, KeyError, TypeError) as erro:
@@ -702,19 +612,10 @@ def buscar_candidatas(tipo, base, grupo, usar_kpopping=True, usar_google=True):
     return []
 
 
-def google_custom_search_configurado():
-    return bool(_secret("GOOGLE_API_KEY") and _secret("GOOGLE_CSE_ID"))
-
-
 def pausar_kpopping_se_bloqueado(erro):
     if (isinstance(erro, KpoppingBlocked)
             or "kpopping.com recusou a busca (HTTP 403)" in str(erro)):
         st.session_state["kpopping_fotos_cooldown_ate"] = time.time() + 86400
-
-
-def pausar_google_se_cota(erro):
-    if isinstance(erro, GoogleQuotaExceeded):
-        st.session_state["google_fotos_cooldown_ate"] = time.time() + 86400
 
 
 def escolher(cands, usadas, atual=None):
@@ -734,8 +635,7 @@ def trocar_foto(id_, idol, grupo, atual=None):
     usar_kpopping = time.time() >= st.session_state.get(
         "kpopping_fotos_cooldown_ate", 0
     )
-    usar_google = time.time() >= st.session_state.get("google_fotos_cooldown_ate", 0)
-    cands = buscar_candidatas(tipo, base, g, usar_kpopping, usar_google)
+    cands = buscar_candidatas(tipo, base, g, usar_kpopping)
     outras = q("SELECT image_url FROM colecao WHERE id != ? AND image_url IS NOT NULL", (int(id_),))
     nova = escolher(cands, set(outras["image_url"]), atual)
     if nova:
@@ -1341,19 +1241,11 @@ with tab_fotos:
     if df_all.empty:
         st.info("Importe ou adicione idols primeiro.")
     else:
-        st.caption("Fontes das fotos: KProfiles, kpopping.com, Google e Wikipédia, nessa ordem. "
+        st.caption("Fontes das fotos: KProfiles, kpopping.com e Wikipédia, nessa ordem. "
                    "As buscas ficam em cache por até 24 horas.")
-        if not google_custom_search_configurado():
-            st.info(
-                "Google Custom Search não está configurado neste ambiente. "
-                "As outras fontes continuam disponíveis."
-            )
         if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
             st.info("kpopping.com recusou as buscas recentemente; a fonte está pausada "
                     "por 24 horas. O KProfiles continua disponível.")
-        if time.time() < st.session_state.get("google_fotos_cooldown_ate", 0):
-            st.info("O Google Custom Search atingiu o limite de requisições; a fonte está "
-                    "pausada por 24 horas.")
         contagem = df_all["url_foto"].dropna().value_counts()
         repetidas = set(contagem[contagem > 1].index)
         fb2 = st.multiselect("Só estes bots (vazio = todos)", sorted(df_all["bot"].unique()), key="f_bots")
@@ -1381,7 +1273,6 @@ with tab_fotos:
                         falhou.append(f"{r.idol} ({r.grupo})")
                 except Exception as e:
                     pausar_kpopping_se_bloqueado(e)
-                    pausar_google_se_cota(e)
                     falhou.append(f"{r.idol} ({r.grupo}): {e}")
                 barra_p.progress(i / len(alvo))
                 time.sleep(0.2)
@@ -1411,7 +1302,6 @@ with tab_fotos:
                         st.warning("Não achei outra foto. Cole uma URL abaixo.")
                 except Exception as e:
                     pausar_kpopping_se_bloqueado(e)
-                    pausar_google_se_cota(e)
                     st.error(str(e))
             nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
             if st.button("Salvar URL", key="f_salva") and _url(nova):

@@ -36,15 +36,11 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
 
 ## Fotos dos idols
 
-O botão **Buscar fotos** (aba Fotos) procura imagens em KProfiles, kpopping.com, Google
-Programmable Search e Wikipédia, nessa ordem. O Google precisa de `GOOGLE_API_KEY` e
-`GOOGLE_CSE_ID` em `.streamlit/secrets.toml`. As páginas e resultados ficam em cache por até
-24 horas para reduzir requisições. Se o kpopping.com recusar o acesso ou o Google atingir a
-cota, novas tentativas naquela fonte são pausadas por 24 horas. Se a foto vier errada ou faltar,
-use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
-Em implantações hospedadas, configure as duas chaves também nos secrets do serviço; o arquivo
-local `.streamlit/secrets.toml` não é enviado ao GitHub. Sem as chaves, o Google é ignorado e a
-busca continua pela Wikipédia.
+O botão **Buscar fotos** (aba Fotos) procura imagens em KProfiles, kpopping.com e Wikipédia,
+nessa ordem. As páginas consultadas ficam em cache por até 24 horas para reduzir requisições.
+Se o kpopping.com recusar o acesso, novas tentativas nessa fonte são pausadas por 24 horas. Se a
+foto vier errada ou faltar, use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da
+aba Fotos.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 
