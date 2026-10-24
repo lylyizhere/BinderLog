@@ -25,6 +25,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
+VERSAO_DESCRICAO = 2
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -139,18 +140,24 @@ def init_db():
         image_url TEXT,
         descricao_pt TEXT,
         descricao_url TEXT,
+        descricao_versao INTEGER NOT NULL DEFAULT 0,
         UNIQUE (bot, grupo, idol))""")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS image_url TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_pt TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_url TEXT")
+    run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_versao "
+        "INTEGER NOT NULL DEFAULT 0")
     run("""CREATE TABLE IF NOT EXISTS colecao_membros (
         id SERIAL PRIMARY KEY,
         colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
         nome TEXT NOT NULL,
         descricao_pt TEXT,
-        descricao_url TEXT)""")
+        descricao_url TEXT,
+        descricao_versao INTEGER NOT NULL DEFAULT 0)""")
     run("ALTER TABLE colecao_membros ADD COLUMN IF NOT EXISTS descricao_pt TEXT")
     run("ALTER TABLE colecao_membros ADD COLUMN IF NOT EXISTS descricao_url TEXT")
+    run("ALTER TABLE colecao_membros ADD COLUMN IF NOT EXISTS descricao_versao "
+        "INTEGER NOT NULL DEFAULT 0")
     run("""CREATE TABLE IF NOT EXISTS colecao_eras (
         id SERIAL PRIMARY KEY,
         colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
@@ -420,8 +427,8 @@ def atualizar_descricao_card(card_id, idol, grupo):
     )
     traducao = traduzir_descricao_ptbr(perfil["descricao"])
     run(
-        "UPDATE colecao SET descricao_pt=?, descricao_url=? WHERE id=?",
-        (traducao, perfil["url"], int(card_id)),
+        "UPDATE colecao SET descricao_pt=?, descricao_url=?, descricao_versao=? WHERE id=?",
+        (traducao, perfil["url"], VERSAO_DESCRICAO, int(card_id)),
     )
     return traducao, perfil["url"]
 
@@ -437,8 +444,9 @@ def atualizar_descricao_membro(membro_id, nome, grupo):
     )
     traducao = traduzir_descricao_ptbr(perfil["descricao"])
     run(
-        "UPDATE colecao_membros SET descricao_pt=?, descricao_url=? WHERE id=?",
-        (traducao, perfil["url"], int(membro_id)),
+        "UPDATE colecao_membros SET descricao_pt=?, descricao_url=?, descricao_versao=? "
+        "WHERE id=?",
+        (traducao, perfil["url"], VERSAO_DESCRICAO, int(membro_id)),
     )
     return traducao, perfil["url"]
 
@@ -620,9 +628,7 @@ header[data-testid="stHeader"]{background:transparent}
 .bg,.bp{position:absolute;top:10px;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(10,12,20,.62);backdrop-filter:blur(6px)}
 .bg{left:10px;text-transform:uppercase;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bp{right:10px;color:var(--p2)}
-.card-info{padding:2px 0 8px;background:var(--card)}
 .nm{padding:2px 14px 0;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card-desc{padding:5px 14px 0;color:var(--mut);font-size:13px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .cnt{text-align:center;font-weight:700;font-size:15px;white-space:nowrap}
 </style>
 """
@@ -642,7 +648,7 @@ def barra(v):
     return f'<div class="bar"><span style="width:{max(0, min(100, v)):.0f}%"></span></div>'
 
 
-def card_html(r, descricao_pt=None):
+def card_html(r):
     nome = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
     grupo = esc(r.grupo or "—")
     badges = f'<span class="bg">{grupo}</span><span class="bp">{r.progresso:.0f}%</span>'
@@ -654,16 +660,7 @@ def card_html(r, descricao_pt=None):
         ini = "".join(w[0] for w in nome.replace("-", " ").split()[:2]).upper() or "?"
         ph = (f'<div class="ph empty" style="--c1:hsl({h} 55% 32%);--c2:hsl({(h + 50) % 360} 55% 16%)">'
               f'<span class="ini">{esc(ini)}</span>{badges}</div>')
-    descricao = (
-        descricao_pt
-        if descricao_pt is not None
-        else getattr(r, "descricao_pt", "")
-    )
-    if pd.notna(descricao) and str(descricao).strip():
-        resumo = f'<div class="card-desc">{esc(str(descricao).strip())}</div>'
-    else:
-        resumo = ""
-    return ph + f'<div class="card-info"><div class="nm">{esc(nome)}</div>{resumo}</div>'
+    return ph + f'<div class="nm">{esc(nome)}</div>'
 
 
 # ---------------------------------------------------------------- Ações
@@ -813,7 +810,7 @@ def dialog_adicionar():
 # ---------------------------------------------------------------- Dados
 df_all = q(
     "SELECT id, bot, grupo, idol, categoria, prioridade, total, possuo, image_url, "
-    "descricao_pt, descricao_url FROM colecao"
+    "descricao_pt, descricao_url, descricao_versao FROM colecao"
 )
 df_all["progresso"] = (df_all["possuo"] / df_all["total"].where(df_all["total"] > 0) * 100).fillna(0)
 df_all["faltam"] = df_all["total"] - df_all["possuo"]
@@ -851,7 +848,14 @@ if card_selecionado:
 
     descricao_card = card["descricao_pt"]
     fonte_descricao = card["descricao_url"]
-    if pd.isna(descricao_card) or not str(descricao_card).strip():
+    descricao_card_desatualizada = (
+        pd.isna(card["descricao_versao"])
+        or int(card["descricao_versao"]) < VERSAO_DESCRICAO
+    )
+    if (
+        pd.isna(descricao_card) or not str(descricao_card).strip()
+        or descricao_card_desatualizada
+    ) and descricao_pode_carregar("card", card_selecionado):
         try:
             with st.spinner("Buscando no KProfiles e traduzindo para português..."):
                 descricao_card, fonte_descricao = atualizar_descricao_card(
@@ -873,7 +877,8 @@ if card_selecionado:
 
     grupo_completo = card["idol"] == GRUPO_COMPLETO
     if grupo_completo:
-        membros = q("SELECT id, nome, descricao_pt, descricao_url FROM colecao_membros "
+        membros = q("SELECT id, nome, descricao_pt, descricao_url, descricao_versao "
+                    "FROM colecao_membros "
                     "WHERE colecao_id=? ORDER BY nome",
                     (int(card_selecionado),))
         roster_url = None
@@ -895,7 +900,7 @@ if card_selecionado:
                     "INSERT INTO colecao_membros (colecao_id, nome) VALUES (?,?)",
                     [(int(card_selecionado), nome) for nome in novos],
                 )
-                membros = q("SELECT id, nome, descricao_pt, descricao_url "
+                membros = q("SELECT id, nome, descricao_pt, descricao_url, descricao_versao "
                             "FROM colecao_membros "
                             "WHERE colecao_id=? ORDER BY nome",
                             (int(card_selecionado),))
@@ -939,8 +944,16 @@ if card_selecionado:
             for membro in ordem_membros:
                 descricao_membro = membro.descricao_pt
                 fonte_membro = membro.descricao_url
+                descricao_membro_desatualizada = (
+                    pd.isna(membro.descricao_versao)
+                    or int(membro.descricao_versao) < VERSAO_DESCRICAO
+                )
                 if (
-                    (pd.isna(descricao_membro) or not str(descricao_membro).strip())
+                    (
+                        pd.isna(descricao_membro)
+                        or not str(descricao_membro).strip()
+                        or descricao_membro_desatualizada
+                    )
                     and not pausa_descricao_membros
                     and descricao_pode_carregar("membro", membro.id)
                 ):
@@ -1084,44 +1097,14 @@ with tab_painel:
                         f'<span>{len(vis)} idols</span></div>', unsafe_allow_html=True)
 
             cols = st.columns(4)
-            pausa_carregamento_descricoes = False
-            erro_carregamento_descricoes = None
             for i, r in enumerate(vis.head(n).itertuples()):
-                descricao_card = r.descricao_pt
-                fonte_card = r.descricao_url
-                if (
-                    (pd.isna(descricao_card) or not str(descricao_card).strip())
-                    and not pausa_carregamento_descricoes
-                    and descricao_pode_carregar("card", r.id)
-                ):
-                    try:
-                        with st.spinner(f"Carregando o resumo de {r.idol}..."):
-                            descricao_card, fonte_card = atualizar_descricao_card(
-                                r.id, r.idol, r.grupo
-                            )
-                        registrar_sucesso_descricao("card", r.id)
-                        filtro_card = vis["id"] == r.id
-                        vis.loc[filtro_card, "descricao_pt"] = descricao_card
-                        vis.loc[filtro_card, "descricao_url"] = fonte_card
-                        df_all.loc[df_all["id"] == r.id, "descricao_pt"] = descricao_card
-                        df_all.loc[df_all["id"] == r.id, "descricao_url"] = fonte_card
-                    except KProfilesRateLimited as erro:
-                        registrar_falha_descricao("card", r.id)
-                        pausa_carregamento_descricoes = True
-                        erro_carregamento_descricoes = str(erro)
-                    except (requests.RequestException, ValueError) as erro:
-                        registrar_falha_descricao("card", r.id)
-                        pausa_carregamento_descricoes = True
-                        erro_carregamento_descricoes = (
-                            f"Não foi possível carregar todas as descrições: {erro}"
-                        )
                 with cols[i % 4]:
                     with st.container(key=f"card_{r.id}"):
                         nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
                         st.markdown(
                             f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
                             f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
-                            f'{card_html(r, descricao_card)}</a>',
+                            f'{card_html(r)}</a>',
                             unsafe_allow_html=True)
                         c1, c2, c3, c4 = st.columns([1, 1.7, 1, 1.1], vertical_alignment="center")
                         c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
@@ -1130,8 +1113,6 @@ with tab_painel:
                         c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
                                   disabled=bool(r.possuo >= r.total))
                         c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
-            if erro_carregamento_descricoes:
-                st.caption(erro_carregamento_descricoes)
             if len(vis) > n:
                 st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
                           width="stretch")
