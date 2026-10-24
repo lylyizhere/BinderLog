@@ -14,6 +14,9 @@ import requests
 import streamlit as st
 
 
+VERSAO_CACHE_PERFIL = 2
+
+
 class KProfilesRateLimited(requests.RequestException):
     def __init__(self, status_code, retry_after):
         self.status_code = status_code
@@ -424,7 +427,9 @@ def _extrair_info_perfil(html, nomes, tipo):
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def buscar_perfil_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
+def buscar_perfil_kprofiles(
+    tipo, base, grupo, nome_busca, termos_busca, versao_cache
+):
     if tipo == "grupo":
         perfis = [(grupo, grupo)]
     else:

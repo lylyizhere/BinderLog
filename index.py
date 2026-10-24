@@ -14,6 +14,7 @@ import streamlit as st
 
 from kprofiles import (
     KProfilesRateLimited,
+    VERSAO_CACHE_PERFIL,
     buscar_imagens_kprofiles,
     buscar_integrantes_kprofiles,
     buscar_perfil_kprofiles,
@@ -25,7 +26,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
-VERSAO_DESCRICAO = 6
+VERSAO_DESCRICAO = 7
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -424,6 +425,7 @@ def atualizar_descricao_card(card_id, idol, grupo):
         grupo_busca,
         PESSOA_ALIAS_BUSCA.get(base.casefold(), base),
         _termos_busca_imagem(tipo, base, grupo_busca),
+        VERSAO_CACHE_PERFIL,
     )
     traducao = traduzir_descricao_ptbr(perfil["descricao"])
     run(
@@ -441,6 +443,7 @@ def atualizar_descricao_membro(membro_id, nome, grupo):
         grupo_busca,
         PESSOA_ALIAS_BUSCA.get(base.casefold(), base),
         _termos_busca_imagem(tipo, base, grupo_busca),
+        VERSAO_CACHE_PERFIL,
     )
     traducao = traduzir_descricao_ptbr(perfil["descricao"])
     run(
@@ -455,9 +458,13 @@ def _tentativas_descricao():
     return st.session_state.setdefault("tentativas_descricoes", {})
 
 
+def _chave_tentativa_descricao(tipo, id_):
+    return tipo, int(id_), VERSAO_DESCRICAO
+
+
 def descricao_pode_carregar(tipo, id_):
     tentativas = _tentativas_descricao()
-    chave = (tipo, int(id_))
+    chave = _chave_tentativa_descricao(tipo, id_)
     agora = time.time()
     if tentativas.get(chave, 0) > agora:
         return False
@@ -466,11 +473,11 @@ def descricao_pode_carregar(tipo, id_):
 
 
 def registrar_falha_descricao(tipo, id_):
-    _tentativas_descricao()[(tipo, int(id_))] = time.time() + 900
+    _tentativas_descricao()[_chave_tentativa_descricao(tipo, id_)] = time.time() + 900
 
 
 def registrar_sucesso_descricao(tipo, id_):
-    _tentativas_descricao().pop((tipo, int(id_)), None)
+    _tentativas_descricao().pop(_chave_tentativa_descricao(tipo, id_), None)
 
 
 def escolher(cands, usadas, atual=None):
