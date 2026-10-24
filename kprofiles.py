@@ -137,11 +137,17 @@ class _PerfilParser(HTMLParser):
         elif tag == "p" and self.conteudo_depth:
             self.in_paragrafo = True
             self.paragrafo_atual = []
+        elif tag == "br" and self.in_paragrafo:
+            self.paragrafo_atual.append("\n")
 
     def handle_endtag(self, tag):
         if tag == "p" and self.in_paragrafo:
-            texto = " ".join("".join(self.paragrafo_atual).split())
-            self.paragrafos.append(texto)
+            linhas = [
+                " ".join(linha.split())
+                for linha in "".join(self.paragrafo_atual).splitlines()
+                if linha.strip()
+            ]
+            self.paragrafos.append("\n".join(linhas))
             self.in_paragrafo = False
         elif tag == "div" and self.conteudo_depth:
             self.conteudo_depth -= 1
@@ -291,7 +297,8 @@ def _extrair_info_perfil(html, nomes, tipo):
     sentencas = [
         sentenca.strip()
         for paragrafo in paragrafos
-        for sentenca in re.split(r"(?<=[.!?])\s+", paragrafo)
+        for linha in paragrafo.splitlines()
+        for sentenca in re.split(r"(?<=[.!?])\s+", linha)
         if sentenca.strip()
     ]
     introducao = ""
@@ -342,11 +349,20 @@ def _extrair_info_perfil(html, nomes, tipo):
         except ValueError:
             pass
 
-    padrao_fato = re.compile(
-        r"\b(?:born|birthday|birth name|position|leader|nationality|height|"
-        r"zodiac|agency|formed\s+(?:in|on)|debut(?:ed|s)?)\b",
-        re.IGNORECASE,
-    )
+    if tipo == "grupo":
+        padrao_fato = re.compile(
+            r"\b(?:meaning|fandom(?: name)?|fan name|formed\s+(?:in|on)|agency|"
+            r"debut(?:ed|s)?|first\s+(?:album|single|ep)|musical style|genre)\b",
+            re.IGNORECASE,
+        )
+    else:
+        padrao_fato = re.compile(
+            r"\b(?:born|birthday|birth name|position|leader|nationality|height|"
+            r"zodiac|agency|member|sub[- ]unit|debut(?:ed|s)?|released|"
+            r"signed with|former|contestant|soloist|joined|known as|singer|"
+            r"rapper|dancer|vocalist)\b",
+            re.IGNORECASE,
+        )
     fatos = []
     for sentenca in sentencas:
         if (
@@ -356,20 +372,49 @@ def _extrair_info_perfil(html, nomes, tipo):
             and sentenca not in fatos
         ):
             fatos.append(sentenca)
-        if len(fatos) == 4:
-            break
+    if tipo == "grupo":
+        fatos = fatos[:5]
+    else:
+        prioridades_fato = (
+            (r"\bbirth(?:day)?\b|\bborn\b|\bbirth name\b", 0),
+            (r"\bposition|\bleader\b|\bnationality\b", 1),
+            (r"\bmember\b|\bsub[- ]unit\b|\bformer\b|\bjoined\b|\bsigned with\b", 2),
+            (r"\bdebut|\breleased\b|\bsoloist\b|\bcontestant\b", 3),
+            (r"\bsinger\b|\brapper\b|\bdancer\b|\bvocalist\b|\bagency\b", 4),
+            (r"\bheight\b|\bzodiac\b|\bknown as\b", 5),
+        )
+
+        def prioridade_fato(sentenca):
+            return next(
+                (
+                    prioridade
+                    for padrao, prioridade in prioridades_fato
+                    if re.search(padrao, sentenca, re.IGNORECASE)
+                ),
+                6,
+            )
+
+        fatos = sorted(enumerate(fatos), key=lambda item: (prioridade_fato(item[1]), item[0]))
+        fatos = [sentenca for _, sentenca in fatos[:6]]
 
     partes = [introducao]
     if integrantes:
-        partes.append("Integrantes: " + ", ".join(integrantes) + ".")
+        partes.append("Membros: " + ", ".join(integrantes) + ".")
     if estreia:
         partes.append("Estreia: " + estreia)
     if album:
-        partes.append("Album de estreia: " + album + ".")
+        partes.append(f"Album de estreia: *{album}*.")
     if fatos:
-        partes.append("Outras informacoes: " + " ".join(fatos))
+        if tipo == "grupo":
+            partes.append("Outras informacoes: " + " ".join(fatos))
+        else:
+            bio = " ".join(fatos)
+            if bio and not re.search(r"[.!?]$", bio):
+                bio += "."
+            if bio:
+                partes.append(bio)
     return {
-        "descricao": " ".join(partes),
+        "descricao": "\n\n".join(partes),
         "introducao": introducao,
         "estreia": estreia,
         "album": album,
@@ -416,44 +461,48 @@ def buscar_perfil_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
 def traduzir_descricao_ptbr(texto):
     if not texto.strip():
         raise ValueError("A descrição para tradução está vazia.")
-    palavras = texto.split()
-    trechos = []
-    trecho_atual = ""
-    for palavra in palavras:
-        while len(palavra) > 450:
-            if trecho_atual:
+    paragrafos = [paragrafo.strip() for paragrafo in texto.split("\n\n") if paragrafo.strip()]
+    paragrafos_traduzidos = []
+    for paragrafo in paragrafos:
+        palavras = paragrafo.split()
+        trechos = []
+        trecho_atual = ""
+        for palavra in palavras:
+            while len(palavra) > 450:
+                if trecho_atual:
+                    trechos.append(trecho_atual)
+                    trecho_atual = ""
+                trechos.append(palavra[:450])
+                palavra = palavra[450:]
+            if trecho_atual and len(trecho_atual) + len(palavra) + 1 > 450:
                 trechos.append(trecho_atual)
                 trecho_atual = ""
-            trechos.append(palavra[:450])
-            palavra = palavra[450:]
-        if trecho_atual and len(trecho_atual) + len(palavra) + 1 > 450:
+            trecho_atual = f"{trecho_atual} {palavra}".strip()
+        if trecho_atual:
             trechos.append(trecho_atual)
-            trecho_atual = ""
-        trecho_atual = f"{trecho_atual} {palavra}".strip()
-    if trecho_atual:
-        trechos.append(trecho_atual)
 
-    traducoes = []
-    for trecho in trechos:
-        resposta = requests.get(
-            "https://api.mymemory.translated.net/get",
-            params={"q": trecho, "langpair": "en|pt-BR"},
-            headers={
-                "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
-            },
-            timeout=20,
-        )
-        resposta.raise_for_status()
-        dados = resposta.json()
-        if not isinstance(dados, dict) or dados.get("responseStatus") != 200:
-            detalhe = dados.get("responseDetails", "Resposta de tradução inválida.")
-            raise ValueError(f"Não foi possível traduzir a descrição: {detalhe}")
-        traducao = dados.get("responseData", {}).get("translatedText", "")
-        traducao = unescape(str(traducao)).strip()
-        if not traducao:
-            raise ValueError("O serviço de tradução retornou uma descrição vazia.")
-        traducoes.append(traducao)
-    return " ".join(traducoes)
+        traducoes = []
+        for trecho in trechos:
+            resposta = requests.get(
+                "https://api.mymemory.translated.net/get",
+                params={"q": trecho, "langpair": "en|pt-BR"},
+                headers={
+                    "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
+                },
+                timeout=20,
+            )
+            resposta.raise_for_status()
+            dados = resposta.json()
+            if not isinstance(dados, dict) or dados.get("responseStatus") != 200:
+                detalhe = dados.get("responseDetails", "Resposta de tradução inválida.")
+                raise ValueError(f"Não foi possível traduzir a descrição: {detalhe}")
+            traducao = dados.get("responseData", {}).get("translatedText", "")
+            traducao = unescape(str(traducao)).strip()
+            if not traducao:
+                raise ValueError("O serviço de tradução retornou uma descrição vazia.")
+            traducoes.append(traducao)
+        paragrafos_traduzidos.append(" ".join(traducoes))
+    return "\n\n".join(paragrafos_traduzidos)
 
 
 def buscar_imagens_kprofiles(tipo, base, grupo, nome_busca, termos_busca,

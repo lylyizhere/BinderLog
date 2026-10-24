@@ -25,7 +25,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
-VERSAO_DESCRICAO = 5
+VERSAO_DESCRICAO = 6
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -985,7 +985,8 @@ if card_selecionado:
                 elif pd.notna(descricao_membro) and str(descricao_membro).strip():
                     fonte_membro = membro.descricao_url
                 if pd.notna(descricao_membro) and str(descricao_membro).strip():
-                    st.caption(str(descricao_membro))
+                    st.markdown(f"**{esc(str(membro.nome))}**")
+                    st.markdown(str(descricao_membro))
                     if pd.notna(fonte_membro) and fonte_membro:
                         st.caption(f"Fonte: [KProfiles]({fonte_membro}) · tradução automática")
                 renderizar_eras_eventos(
