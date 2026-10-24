@@ -6,6 +6,7 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from html import unescape
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
@@ -274,6 +275,72 @@ def buscar_integrantes_kprofiles(grupo):
 
     integrantes = _extrair_integrantes(_buscar_html(perfil_url))
     return integrantes, perfil_url
+
+
+def _extrair_descricao(html, nomes):
+    parser = _PerfilParser()
+    parser.feed(html)
+    for paragrafo in parser.paragrafos:
+        for nome in nomes:
+            if not nome:
+                continue
+            padrao = re.compile(
+                rf"(?<!\w){re.escape(nome)}(?!\w)(?:\s*\([^)]*\))?"
+                rf"\s+(?:is|are|was|were)\s+[^.!?]+[.!?]",
+                re.IGNORECASE,
+            )
+            resultado = padrao.search(paragrafo)
+            if resultado:
+                return resultado.group(0).strip()
+    raise ValueError("O perfil do KProfiles não apresentou uma descrição curta reconhecível.")
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def buscar_descricao_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
+    if tipo == "grupo":
+        perfis = [(grupo, grupo)]
+    else:
+        perfis = [(termo, nome_busca) for termo in termos_busca]
+        if grupo and grupo.casefold() != "solo":
+            perfis.append((grupo, base))
+
+    consultadas = set()
+    for consulta, esperado in perfis:
+        chave = (consulta.casefold(), esperado.casefold())
+        if chave in consultadas:
+            continue
+        consultadas.add(chave)
+        perfil_url = _url_perfil(consulta, esperado)
+        if not perfil_url:
+            continue
+        descricao = _extrair_descricao(
+            _buscar_html(perfil_url),
+            (nome_busca, base, grupo if tipo == "grupo" else ""),
+        )
+        return descricao, perfil_url
+    raise ValueError(f"Não foi encontrada uma descrição no KProfiles para {base}.")
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def traduzir_descricao_ptbr(texto):
+    resposta = requests.get(
+        "https://api.mymemory.translated.net/get",
+        params={"q": texto, "langpair": "en|pt-BR"},
+        headers={
+            "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
+        },
+        timeout=20,
+    )
+    resposta.raise_for_status()
+    dados = resposta.json()
+    if not isinstance(dados, dict) or dados.get("responseStatus") != 200:
+        detalhe = dados.get("responseDetails", "Resposta de tradução inválida.")
+        raise ValueError(f"Não foi possível traduzir a descrição: {detalhe}")
+    traducao = dados.get("responseData", {}).get("translatedText", "")
+    traducao = unescape(str(traducao)).strip()
+    if not traducao:
+        raise ValueError("O serviço de tradução retornou uma descrição vazia.")
+    return traducao
 
 
 def buscar_imagens_kprofiles(tipo, base, grupo, nome_busca, termos_busca,

@@ -14,9 +14,11 @@ import streamlit as st
 
 from kprofiles import (
     KProfilesRateLimited,
+    buscar_descricao_kprofiles,
     buscar_imagens_kprofiles,
     buscar_integrantes_kprofiles,
     nome_aparece_em_texto,
+    traduzir_descricao_ptbr,
 )
 
 BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
@@ -135,8 +137,12 @@ def init_db():
         total INTEGER NOT NULL DEFAULT 0,
         possuo INTEGER NOT NULL DEFAULT 0,
         image_url TEXT,
+        descricao_pt TEXT,
+        descricao_url TEXT,
         UNIQUE (bot, grupo, idol))""")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS image_url TEXT")
+    run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_pt TEXT")
+    run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_url TEXT")
     run("""CREATE TABLE IF NOT EXISTS colecao_membros (
         id SERIAL PRIMARY KEY,
         colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
@@ -399,6 +405,23 @@ def buscar_candidatas(tipo, base, grupo):
     return []
 
 
+def atualizar_descricao_card(card_id, idol, grupo):
+    tipo, base, grupo_busca = contexto(idol, grupo)
+    descricao, fonte = buscar_descricao_kprofiles(
+        tipo,
+        base,
+        grupo_busca,
+        PESSOA_ALIAS_BUSCA.get(base.casefold(), base),
+        _termos_busca_imagem(tipo, base, grupo_busca),
+    )
+    traducao = traduzir_descricao_ptbr(descricao)
+    run(
+        "UPDATE colecao SET descricao_pt=?, descricao_url=? WHERE id=?",
+        (traducao, fonte, int(card_id)),
+    )
+    return traducao, fonte
+
+
 def escolher(cands, usadas, atual=None):
     """Próxima candidata (depois da atual) que nenhum outro card está usando."""
     if not cands:
@@ -555,6 +578,7 @@ header[data-testid="stHeader"]{background:transparent}
 .bg{left:10px;text-transform:uppercase;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bp{right:10px;color:var(--p2)}
 .nm{padding:2px 14px 0;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-desc{padding:4px 14px 0;color:var(--mut);font-size:12px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .cnt{text-align:center;font-weight:700;font-size:15px;white-space:nowrap}
 </style>
 """
@@ -586,7 +610,12 @@ def card_html(r):
         ini = "".join(w[0] for w in nome.replace("-", " ").split()[:2]).upper() or "?"
         ph = (f'<div class="ph empty" style="--c1:hsl({h} 55% 32%);--c2:hsl({(h + 50) % 360} 55% 16%)">'
               f'<span class="ini">{esc(ini)}</span>{badges}</div>')
-    return ph + f'<div class="nm">{esc(nome)}</div>'
+    descricao = getattr(r, "descricao_pt", "")
+    if pd.notna(descricao) and str(descricao).strip():
+        resumo = f'<div class="card-desc">{esc(str(descricao).strip())}</div>'
+    else:
+        resumo = ""
+    return ph + f'<div class="nm">{esc(nome)}</div>' + resumo
 
 
 # ---------------------------------------------------------------- Ações
@@ -734,7 +763,10 @@ def dialog_adicionar():
 
 
 # ---------------------------------------------------------------- Dados
-df_all = q("SELECT id, bot, grupo, idol, categoria, prioridade, total, possuo, image_url FROM colecao")
+df_all = q(
+    "SELECT id, bot, grupo, idol, categoria, prioridade, total, possuo, image_url, "
+    "descricao_pt, descricao_url FROM colecao"
+)
 df_all["progresso"] = (df_all["possuo"] / df_all["total"].where(df_all["total"] > 0) * 100).fillna(0)
 df_all["faltam"] = df_all["total"] - df_all["possuo"]
 df_all["url_foto"] = df_all["image_url"].map(_url)
@@ -768,6 +800,23 @@ if card_selecionado:
 
     if card["url_foto"]:
         st.image(card["url_foto"], width=180)
+
+    if pd.notna(card["descricao_pt"]) and str(card["descricao_pt"]).strip():
+        st.subheader("Sobre")
+        st.write(str(card["descricao_pt"]))
+        if pd.notna(card["descricao_url"]) and card["descricao_url"]:
+            st.caption(f"Fonte: [KProfiles]({card['descricao_url']}) · tradução automática")
+    elif st.button("🌐 Buscar descrição e traduzir", key=f"descricao_{card_selecionado}"):
+        try:
+            with st.spinner("Buscando no KProfiles e traduzindo para português..."):
+                atualizar_descricao_card(
+                    int(card_selecionado), card["idol"], card["grupo"]
+                )
+            st.rerun()
+        except KProfilesRateLimited as erro:
+            st.warning(str(erro))
+        except (requests.RequestException, ValueError) as erro:
+            st.error(f"Não foi possível carregar a descrição: {erro}")
 
     grupo_completo = card["idol"] == GRUPO_COMPLETO
     if grupo_completo:
@@ -948,10 +997,72 @@ with tab_painel:
             if prios:
                 vis = vis[vis["prioridade"].isin(prios)]
             vis = ordenar(vis, ordem)
+            vis = vis.copy()
+            n = st.session_state.setdefault("n_cards", 12)
+            with st.expander("Descrições dos cards", expanded=False):
+                st.caption(
+                    "Os resumos vêm do KProfiles, são traduzidos automaticamente para "
+                    "português e salvos no banco. A tradução é enviada ao MyMemory."
+                )
+                sem_descricao = vis.head(n)
+                sem_descricao = sem_descricao[
+                    sem_descricao["descricao_pt"].isna()
+                    | sem_descricao["descricao_pt"].fillna("").str.strip().eq("")
+                ]
+                if sem_descricao.empty:
+                    st.success("Todos os cards deste filtro já têm descrição.")
+                else:
+                    limite_descricoes = st.number_input(
+                        "Buscar descrições nesta rodada",
+                        min_value=1,
+                        max_value=5,
+                        value=min(3, len(sem_descricao)),
+                        key="limite_descricoes",
+                    )
+                    if st.button(
+                        f"Buscar descrições ({len(sem_descricao)} faltando)",
+                        key="buscar_descricoes",
+                    ):
+                        selecionados_descricoes = sem_descricao.head(
+                            int(limite_descricoes)
+                        )
+                        progresso_descricoes = st.progress(0.0)
+                        carregadas = 0
+                        erro_descricao = None
+                        pausa_descricoes = None
+                        for indice, resumo_card in enumerate(
+                            selecionados_descricoes.itertuples(), 1
+                        ):
+                            try:
+                                descricao, fonte = atualizar_descricao_card(
+                                    resumo_card.id,
+                                    resumo_card.idol,
+                                    resumo_card.grupo,
+                                )
+                            except KProfilesRateLimited as erro:
+                                pausa_descricoes = str(erro)
+                                break
+                            except (requests.RequestException, ValueError) as erro:
+                                erro_descricao = (
+                                    f"{resumo_card.idol} ({resumo_card.grupo}): {erro}"
+                                )
+                                break
+                            filtro_card = vis["id"] == resumo_card.id
+                            vis.loc[filtro_card, "descricao_pt"] = descricao
+                            vis.loc[filtro_card, "descricao_url"] = fonte
+                            carregadas += 1
+                            progresso_descricoes.progress(
+                                indice / len(selecionados_descricoes)
+                            )
+                        if carregadas:
+                            st.success(f"{carregadas} descrição(ões) carregada(s).")
+                        if pausa_descricoes:
+                            st.warning(pausa_descricoes)
+                        if erro_descricao:
+                            st.warning(f"Não foi possível carregar a descrição: {erro_descricao}")
             st.markdown(f'<div class="hd"><h3>{"Todas as idols" if sel == "Todos" else esc(sel)}</h3>'
                         f'<span>{len(vis)} idols</span></div>', unsafe_allow_html=True)
 
-            n = st.session_state.setdefault("n_cards", 12)
             cols = st.columns(4)
             for i, r in enumerate(vis.head(n).itertuples()):
                 with cols[i % 4]:

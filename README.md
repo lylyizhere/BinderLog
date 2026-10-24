@@ -52,6 +52,10 @@ User-Agent e serializa as requisições, aguardando de 1,5 a 2,5 segundos entre 
 responder HTTP 429, o scraper respeita `Retry-After` ou pausa por uma hora; diante de HTTP 403,
 pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a busca em lote. O controle
 de ritmo e a pausa são compartilhados entre sessões no mesmo processo do Streamlit.
+Na aba Painel, use **Descrições dos cards** para buscar, em lotes pequenos, resumos dos cards
+visíveis. O texto é extraído do parágrafo introdutório do KProfiles, traduzido para português
+brasileiro pelo serviço MyMemory e salvo no banco; abrir um card também permite buscar o resumo
+individualmente. O texto público do perfil é enviado ao serviço de tradução.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 
