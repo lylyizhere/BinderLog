@@ -1,7 +1,10 @@
 import os
 import re
 import time
+import tomllib
+from html import escape as esc
 from contextlib import closing
+from pathlib import Path
 
 import pandas as pd
 import psycopg2
@@ -13,22 +16,42 @@ PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
 
-st.set_page_config(page_title="Progresso da coleção", page_icon="💿", layout="wide")
+st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
+
+
+SECRETS_FILE = Path(__file__).resolve().parent / ".streamlit" / "secrets.toml"
 
 
 def _secret(name):
+    """Lê uma configuração: st.secrets, variável de ambiente ou o secrets.toml
+    que fica ao lado deste arquivo (não depende da pasta onde o terminal está)."""
     try:
-        return st.secrets.get(name) or os.environ.get(name)
+        v = st.secrets.get(name)
+        if v:
+            return v
     except Exception:
-        return os.environ.get(name)
+        pass
+    v = os.environ.get(name)
+    if v:
+        return v
+    try:
+        with open(SECRETS_FILE, "rb") as f:
+            return tomllib.load(f).get(name)
+    except FileNotFoundError:
+        return None
+    except tomllib.TOMLDecodeError as e:
+        st.error(f"Erro de sintaxe no {SECRETS_FILE}: {e}")
+        return None
 
 
 # ---------------------------------------------------------------- Banco (PostgreSQL)
 def conn():
     url = _secret("DATABASE_URL")
     if not url:
-        st.error("Configure a variável DATABASE_URL (veja o README / secrets.toml), "
-                 "por exemplo: postgresql://usuario:senha@localhost:5432/binderlog")
+        st.error("DATABASE_URL não encontrada. Crie o arquivo abaixo com a linha "
+                 'DATABASE_URL = "postgresql://usuario:senha@localhost:5432/binderlog"')
+        st.code(str(SECRETS_FILE))
+        st.caption(f"Arquivo existe? {SECRETS_FILE.exists()} · Pasta atual do terminal: {Path.cwd()}")
         st.stop()
     return psycopg2.connect(url)
 
@@ -310,22 +333,111 @@ def ordenar(df, ordem):
     return df.drop(columns=[c for c in ["_nome", "_grupo", "_p"] if c in df.columns])
 
 
-# ---------------------------------------------------------------- Interface
-st.title("💿 Progresso da coleção")
-tab_prog, tab_gal, tab_add, tab_imp = st.tabs(["Progresso", "Galeria", "Adicionar", "Importar CSV"])
+# ---------------------------------------------------------------- Visual (tema escuro roxo)
+CSS = """
+<style>
+:root{--bg:#0a0c14;--card:#121626;--line:rgba(255,255,255,.08);--p:#8b5cf6;--p2:#a78bfa;--g:#14b8a6;--mut:#8b90a8;}
+.stApp{background:radial-gradient(1100px 520px at 85% -10%,rgba(139,92,246,.14),transparent),var(--bg);}
+#MainMenu,footer{visibility:hidden}
+header[data-testid="stHeader"]{background:transparent}
+.block-container{max-width:1200px;padding-top:2rem}
+.mut{color:var(--mut);font-size:13px}
+.ttl{display:flex;gap:12px;align-items:center;line-height:1.25}
+.ttl b{font-size:20px}
+.logo{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6d4aff,#38bdf8);font-size:22px}
+.pill{display:flex;gap:10px;align-items:center;justify-content:center;padding:8px 14px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:13px}
+.lbl{font-size:12px;letter-spacing:.12em;color:var(--mut);font-weight:600;margin-bottom:8px}
+.hero{display:grid;grid-template-columns:1fr auto;gap:14px 24px;align-items:center;padding:28px;margin:8px 0 22px;border-radius:22px;border:1px solid var(--line);background:linear-gradient(135deg,#171b33,#0f2a30)}
+.hero .big{font-size:64px;font-weight:800;line-height:1;background:linear-gradient(90deg,#8b5cf6,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{color:#b9bdd3;margin-top:10px}
+.hero .bar{grid-column:1/-1}
+.bar{height:8px;border-radius:99px;background:#1e2338;overflow:hidden}
+.bar>span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#14b8a6)}
+.brow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin:2px 4px 14px}
+.brow b{color:var(--p2)}
+.ring{--s:96px;width:var(--s);height:var(--s);border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--p) calc(var(--v)*1%),#1e2338 0)}
+.ring::before{content:"";position:absolute;inset:9px;border-radius:50%;background:#10142a}
+.ring b{position:relative;font-size:16px}
+.ring.sm{--s:38px}.ring.sm::before{inset:4px}.ring.sm b{font-size:10px}
+.hd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 10px}
+.hd h3{margin:0;font-size:22px}.hd span{color:var(--mut);font-size:13px}
+.st-key-botes button{justify-content:flex-start;text-align:left;padding:14px 16px;border-radius:14px;background:var(--card);border:1px solid var(--line);color:#e8eaf2;font-weight:600}
+.st-key-botes button[data-testid="stBaseButton-primary"]{border:1.5px solid var(--p);background:#16132d}
+[class*="st-key-card_"]{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;padding:0 0 14px;gap:.55rem}
+[class*="st-key-card_"] [data-testid="stMarkdownContainer"] p{margin:0}
+[class*="st-key-card_"] [data-testid="stHorizontalBlock"]{padding:0 14px;flex-wrap:nowrap;gap:.3rem}
+[class*="st-key-card_"] [data-testid="stColumn"]{min-width:0}
+[class*="st-key-card_"] button{width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:#1b2036;border:1px solid var(--line);color:#e8eaf2}
+.ph{position:relative;aspect-ratio:3/4;overflow:hidden;background:#1a1f35}
+.ph img{width:100%;height:100%;object-fit:cover;object-position:top}
+.ph.empty{display:grid;place-items:center;background:linear-gradient(135deg,var(--c1),var(--c2))}
+.ph .ini{font-size:44px;font-weight:800;opacity:.55}
+.bg,.bp{position:absolute;top:10px;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(10,12,20,.62);backdrop-filter:blur(6px)}
+.bg{left:10px;text-transform:uppercase;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bp{right:10px;color:var(--p2)}
+.nm{padding:2px 14px 0;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cnt{text-align:center;font-weight:700;font-size:15px;white-space:nowrap}
+</style>
+"""
+st.markdown(CSS, unsafe_allow_html=True)
 
-with tab_add:
+
+def pct(parte, total):
+    return float(parte) / float(total) * 100 if total else 0.0
+
+
+def ring(v, sm=False):
+    v = max(0, min(100, v))
+    return f'<div class="ring{" sm" if sm else ""}" style="--v:{v:.0f}"><b>{v:.0f}%</b></div>'
+
+
+def barra(v):
+    return f'<div class="bar"><span style="width:{max(0, min(100, v)):.0f}%"></span></div>'
+
+
+def card_html(r):
+    nome = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
+    grupo = esc(r.grupo or "—")
+    badges = f'<span class="bg">{grupo}</span><span class="bp">{r.progresso:.0f}%</span>'
+    foto = _url(r.url_foto)
+    if foto:
+        ph = f'<div class="ph"><img src="{esc(foto, quote=True)}" referrerpolicy="no-referrer" loading="lazy">{badges}</div>'
+    else:
+        h = sum(map(ord, r.grupo or "x")) % 360
+        ini = "".join(w[0] for w in nome.replace("-", " ").split()[:2]).upper() or "?"
+        ph = (f'<div class="ph empty" style="--c1:hsl({h} 55% 32%);--c2:hsl({(h + 50) % 360} 55% 16%)">'
+              f'<span class="ini">{esc(ini)}</span>{badges}</div>')
+    return ph + f'<div class="nm">{esc(nome)}</div>'
+
+
+# ---------------------------------------------------------------- Ações
+def ajustar(id_, delta):
+    run("UPDATE colecao SET possuo = GREATEST(0, LEAST(total, possuo + ?)) WHERE id = ?",
+        (int(delta), int(id_)))
+
+
+def selecionar_bot(nome):
+    st.session_state["bot_sel"] = nome
+    st.session_state["n_cards"] = 12
+
+
+def mostrar_mais():
+    st.session_state["n_cards"] = st.session_state.get("n_cards", 12) + 12
+
+
+@st.dialog("Adicionar idol / bot")
+def dialog_adicionar():
     with st.form("novo", clear_on_submit=True):
-        c1, c2, c3 = st.columns(3)
-        idol = c1.text_input("Idol / Solista")
-        grupo = c2.text_input("Grupo")
-        bot = c3.selectbox("Bot", BOTS)
-        c4, c5, c6, c7 = st.columns(4)
+        idol = st.text_input("Idol / Solista")
+        grupo = st.text_input("Grupo (ou SOLO)")
+        bot = st.selectbox("Bot", BOTS)
+        c4, c5 = st.columns(2)
         cat = c4.selectbox("Categoria", CATEGORIAS)
         prio = c5.selectbox("Prioridade", PRIORIDADES, index=1)
+        c6, c7 = st.columns(2)
         total = c6.number_input("Total de cartas", min_value=0, value=0)
         possuo = c7.number_input("Quantas eu tenho", min_value=0, value=0)
-        if st.form_submit_button("Adicionar"):
+        if st.form_submit_button("Adicionar", type="primary"):
             if not idol.strip():
                 st.error("Informe o nome.")
             elif possuo > total:
@@ -335,10 +447,236 @@ with tab_add:
                     run("INSERT INTO colecao (bot, grupo, idol, categoria, prioridade, total, possuo) "
                         "VALUES (?,?,?,?,?,?,?)",
                         (bot, grupo.strip(), idol.strip(), cat, prio, int(total), int(possuo)))
-                    st.success("Adicionado!")
+                    st.rerun()
                 except psycopg2.IntegrityError:
-                    st.error(f"{idol} ({grupo}) já existe no bot {bot}. Edite na aba Progresso.")
+                    st.error(f"{idol} ({grupo}) já existe no bot {bot}. Edite na aba Tabela.")
 
+
+# ---------------------------------------------------------------- Dados
+df_all = q("SELECT id, bot, grupo, idol, categoria, prioridade, total, possuo, image_url FROM colecao")
+df_all["progresso"] = (df_all["possuo"] / df_all["total"].where(df_all["total"] > 0) * 100).fillna(0)
+df_all["faltam"] = df_all["total"] - df_all["possuo"]
+df_all["url_foto"] = df_all["image_url"].map(_url)
+ORDENS = ["Idol (A–Z)", "Grupo (A–Z)", "Menor progresso", "Maior progresso",
+          "Mais cartas faltando", "Prioridade"]
+
+# ---------------------------------------------------------------- Cabeçalho
+tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
+c_tit, c_pill, c_btn = st.columns([5, 2.4, 2.4], vertical_alignment="center")
+c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
+               '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
+c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
+                unsafe_allow_html=True)
+if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
+    dialog_adicionar()
+
+tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(["Painel", "Tabela", "Fotos", "Importar CSV"])
+
+# ---------------------------------------------------------------- Painel
+with tab_painel:
+    if df_all.empty:
+        st.info("Nada por aqui ainda. Use **Importar CSV** ou o botão **Adicionar idol / bot**.")
+    else:
+        bots_ord = ["Todos"] + sorted(df_all["bot"].unique())
+        if st.session_state.get("bot_sel") not in bots_ord:
+            st.session_state["bot_sel"] = "Todos"
+        sel = st.session_state["bot_sel"]
+        base_df = df_all if sel == "Todos" else df_all[df_all["bot"] == sel]
+        t, p = int(base_df["total"].sum()), int(base_df["possuo"].sum())
+        v = pct(p, t)
+        st.markdown(
+            f'<div class="hero"><div><div class="lbl">PROGRESSO GERAL</div><div class="big">{v:.0f}%</div>'
+            f'<div class="sub">{p} de {t} cartas coletadas</div></div>{ring(v)}{barra(v)}</div>',
+            unsafe_allow_html=True)
+
+        esq, dir_ = st.columns([1, 3], gap="large")
+        with esq:
+            st.markdown('<div class="lbl">BOTS</div>', unsafe_allow_html=True)
+            with st.container(key="botes"):
+                for b in bots_ord:
+                    sub = df_all if b == "Todos" else df_all[df_all["bot"] == b]
+                    vb = pct(sub["possuo"].sum(), sub["total"].sum())
+                    st.button(f"{b}  ·  {len(sub)} idols", key=f"bot_{b}", width="stretch",
+                              type="primary" if b == sel else "secondary",
+                              on_click=selecionar_bot, args=(b,))
+                    st.markdown(f'{barra(vb)}<div class="brow"><span>Progresso</span><b>{vb:.0f}%</b></div>',
+                                unsafe_allow_html=True)
+        with dir_:
+            f1, f2, f3 = st.columns([3, 2, 2])
+            busca = f1.text_input("Buscar", placeholder="Buscar idol ou grupo",
+                                  label_visibility="collapsed", key="p_busca")
+            ordem = f2.selectbox("Ordenar", ORDENS, label_visibility="collapsed", key="p_ordem")
+            prios = f3.multiselect("Prioridade", PRIORIDADES, placeholder="Prioridade",
+                                   label_visibility="collapsed", key="p_prio")
+            vis = base_df
+            if busca:
+                vis = vis[vis["idol"].str.contains(busca, case=False, regex=False)
+                          | vis["grupo"].str.contains(busca, case=False, regex=False)]
+            if prios:
+                vis = vis[vis["prioridade"].isin(prios)]
+            vis = ordenar(vis, ordem)
+            st.markdown(f'<div class="hd"><h3>{"Todas as idols" if sel == "Todos" else esc(sel)}</h3>'
+                        f'<span>{len(vis)} idols</span></div>', unsafe_allow_html=True)
+
+            n = st.session_state.setdefault("n_cards", 12)
+            cols = st.columns(4)
+            for i, r in enumerate(vis.head(n).itertuples()):
+                with cols[i % 4]:
+                    with st.container(key=f"card_{r.id}"):
+                        st.markdown(card_html(r), unsafe_allow_html=True)
+                        c1, c2, c3, c4 = st.columns([1, 1.7, 1, 1.1], vertical_alignment="center")
+                        c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
+                                  disabled=bool(r.possuo <= 0))
+                        c2.markdown(f'<div class="cnt">{r.possuo}/{r.total}</div>', unsafe_allow_html=True)
+                        c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
+                                  disabled=bool(r.possuo >= r.total))
+                        c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
+            if len(vis) > n:
+                st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
+                          width="stretch")
+
+# ---------------------------------------------------------------- Tabela (edição em massa)
+with tab_tabela:
+    if df_all.empty:
+        st.info("Nada por aqui ainda.")
+    else:
+        st.caption("Edite direto na tabela e clique em **Salvar alterações**. O total geral soma cada linha; "
+                   "cartas compartilhadas entre membros do mesmo grupo podem ser contadas mais de uma vez.")
+        f1, f2, f3, f4, f5 = st.columns(5)
+        fb = f1.multiselect("Bot", sorted(df_all["bot"].unique()), key="t_bot")
+        fg = f2.multiselect("Grupo", sorted(df_all["grupo"].unique(), key=str.casefold), key="t_grupo")
+        fp = f3.multiselect("Prioridade", PRIORIDADES, key="t_prio")
+        fc = f4.multiselect("Categoria", CATEGORIAS, key="t_cat")
+        busca_t = f5.text_input("Buscar idol", key="t_busca")
+        df = df_all
+        if fb:
+            df = df[df["bot"].isin(fb)]
+        if fg:
+            df = df[df["grupo"].isin(fg)]
+        if fp:
+            df = df[df["prioridade"].isin(fp)]
+        if fc:
+            df = df[df["categoria"].isin(fc)]
+        if busca_t:
+            df = df[df["idol"].str.contains(busca_t, case=False, regex=False)
+                    | df["grupo"].str.contains(busca_t, case=False, regex=False)]
+        df = ordenar(df, st.selectbox("Ordenar por", ORDENS, key="t_ordem")).copy()
+        df["excluir"] = False
+
+        edited = st.data_editor(
+            df, hide_index=True, width="stretch",
+            disabled=["id", "progresso", "faltam"],
+            column_order=["bot", "grupo", "idol", "categoria", "prioridade",
+                          "total", "possuo", "faltam", "progresso", "image_url", "excluir"],
+            column_config={
+                "bot": st.column_config.SelectboxColumn("Bot", options=BOTS),
+                "grupo": "Grupo",
+                "idol": "Idol",
+                "categoria": st.column_config.SelectboxColumn("Categoria", options=CATEGORIAS),
+                "prioridade": st.column_config.SelectboxColumn("Prioridade", options=PRIORIDADES),
+                "total": st.column_config.NumberColumn("Total", min_value=0, step=1),
+                "possuo": st.column_config.NumberColumn("Tenho", min_value=0, step=1),
+                "faltam": st.column_config.NumberColumn("Faltam"),
+                "progresso": st.column_config.ProgressColumn(
+                    "Progresso", min_value=0, max_value=100, format="%.0f%%"),
+                "image_url": st.column_config.TextColumn("URL da foto"),
+                "excluir": st.column_config.CheckboxColumn("Excluir"),
+            },
+        )
+        if st.button("💾 Salvar alterações", type="primary"):
+            erros = []
+            for r in edited.itertuples():
+                if r.excluir:
+                    run("DELETE FROM colecao WHERE id=?", (int(r.id),))
+                elif r.total < 0 or r.possuo < 0:
+                    erros.append(f"{r.idol} ({r.bot}): valores não podem ser negativos.")
+                elif r.possuo > r.total:
+                    erros.append(f"{r.idol} ({r.bot}): 'Tenho' maior que 'Total'.")
+                else:
+                    try:
+                        run("UPDATE colecao SET bot=?, grupo=?, idol=?, categoria=?, prioridade=?, "
+                            "total=?, possuo=?, image_url=? WHERE id=?",
+                            (r.bot, r.grupo, r.idol, r.categoria, r.prioridade,
+                             int(r.total), int(r.possuo), _url(r.image_url), int(r.id)))
+                    except psycopg2.IntegrityError:
+                        erros.append(f"{r.idol} ({r.grupo}) já existe no bot {r.bot}.")
+            if erros:
+                for e in erros:
+                    st.error(e)
+            else:
+                st.rerun()
+        st.download_button("⬇️ Baixar CSV", q("SELECT * FROM colecao").to_csv(index=False),
+                           "binderlog.csv", "text/csv")
+
+# ---------------------------------------------------------------- Fotos
+with tab_fotos:
+    if df_all.empty:
+        st.info("Importe ou adicione idols primeiro.")
+    else:
+        tem_google = bool(_secret("GOOGLE_API_KEY") and _secret("GOOGLE_CSE_ID"))
+        st.caption("Fonte das fotos: " + ("Google (Custom Search, filtro de rosto) + Wikipedia."
+                   if tem_google else "Wikipedia (configure as chaves do Google para buscar lá)."))
+        contagem = df_all["url_foto"].dropna().value_counts()
+        repetidas = set(contagem[contagem > 1].index)
+        fb2 = st.multiselect("Só estes bots (vazio = todos)", sorted(df_all["bot"].unique()), key="f_bots")
+        dff = df_all[df_all["bot"].isin(fb2)] if fb2 else df_all
+        dff = ordenar(dff, "Idol (A–Z)")
+        falta = dff["url_foto"].isna()
+        rep = dff["url_foto"].isin(repetidas)
+        modo = st.radio("Buscar fotos para", ["Só as que faltam", "Faltam + repetidas",
+                                              "Todas (substituir)"], horizontal=True, key="f_modo")
+        alvo = {"Só as que faltam": dff[falta], "Faltam + repetidas": dff[falta | rep],
+                "Todas (substituir)": dff}[modo]
+        c1, c2 = st.columns([1, 2])
+        limite = c1.number_input("Buscar no máximo", min_value=1, max_value=100, value=30, key="f_lim")
+        st.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} com foto repetida")
+        if c2.button(f"🔎 Buscar fotos ({len(alvo)} idols)", disabled=alvo.empty):
+            barra_p = st.progress(0.0)
+            achou, falhou = 0, []
+            alvo = alvo.head(int(limite))
+            for i, r in enumerate(alvo.itertuples(), 1):
+                try:
+                    atual = _url(r.url_foto) if modo != "Só as que faltam" else None
+                    if trocar_foto(r.id, r.idol, r.grupo, atual):
+                        achou += 1
+                    else:
+                        falhou.append(f"{r.idol} ({r.grupo})")
+                except Exception as e:
+                    falhou.append(f"{r.idol} ({r.grupo}): {e}")
+                barra_p.progress(i / len(alvo))
+                time.sleep(0.2)
+            st.success(f"{achou} fotos atualizadas.")
+            if falhou:
+                st.warning("Sem foto nova: " + "; ".join(falhou) + ". Use o ajuste individual abaixo.")
+            else:
+                st.rerun()
+
+        st.divider()
+        st.subheader("Ajustar a foto de um idol")
+        rotulo = {int(r.id): f"{r.idol} — {r.grupo} ({r.bot})" for r in ordenar(df_all, "Idol (A–Z)").itertuples()}
+        sel_id = st.selectbox("Idol", list(rotulo), format_func=rotulo.get, key="f_idol")
+        linha = df_all[df_all["id"] == sel_id].iloc[0]
+        atual = _url(linha["url_foto"])
+        g1, g2 = st.columns([1, 2])
+        if atual:
+            g1.image(atual, width=180)
+        else:
+            g1.caption("sem foto")
+        with g2:
+            if st.button("🔄 Trocar por outra foto", key="f_troca"):
+                try:
+                    if trocar_foto(sel_id, linha["idol"], linha["grupo"], atual):
+                        st.rerun()
+                    else:
+                        st.warning("Não achei outra foto. Cole uma URL abaixo.")
+                except Exception as e:
+                    st.error(str(e))
+            nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
+            if st.button("Salvar URL", key="f_salva") and _url(nova):
+                run("UPDATE colecao SET image_url=? WHERE id=?", (_url(nova), int(sel_id)))
+                st.rerun()
+
+# ---------------------------------------------------------------- Importar CSV
 with tab_imp:
     st.write("Importa o formato da **Garam**. O arquivo *Bancodedados* é obrigatório "
              "(traz total e quantidade adquirida); a *Priolist* é opcional e preenche "
@@ -354,173 +692,10 @@ with tab_imp:
                 with st.expander(f"⚠️ {len(avisos)} aviso(s) na leitura do CSV"):
                     for a in avisos:
                         st.write("• " + a)
-            st.dataframe(prev, hide_index=True, use_container_width=True)
+            st.dataframe(prev, hide_index=True, width="stretch")
             if st.button("Importar", type="primary"):
                 run_many(UPSERT, [(bot_imp, r.grupo, r.idol, r.categoria, r.prioridade,
                                    int(r.total), int(r.possuo)) for r in prev.itertuples()])
                 st.success(f"{len(prev)} linhas importadas para {bot_imp}!")
         except Exception as e:
             st.error(str(e))
-
-with tab_prog:
-    df = q("SELECT id, bot, grupo, idol, categoria, prioridade, total, possuo, image_url "
-           "FROM colecao")
-    if df.empty:
-        st.info("Nada por aqui ainda. Use a aba **Importar CSV** ou **Adicionar**.")
-        st.stop()
-
-    tot, pos = int(df["total"].sum()), int(df["possuo"].sum())
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Cartas no total", tot)
-    m2.metric("Cartas que tenho", pos)
-    m3.metric("Progresso geral", f"{pos / tot * 100:.1f}%" if tot else "0%")
-    st.caption("Obs.: o total é a soma de cada linha; cartas compartilhadas entre "
-               "membros do mesmo grupo podem ser contadas mais de uma vez.")
-
-    resumo = df.groupby("bot")[["total", "possuo"]].sum().reset_index()
-    resumo["progresso"] = (resumo["possuo"] / resumo["total"].where(resumo["total"] > 0) * 100).fillna(0)
-    st.subheader("Por bot")
-    st.dataframe(
-        resumo, hide_index=True, use_container_width=True,
-        column_config={"progresso": st.column_config.ProgressColumn(
-            "Progresso", min_value=0, max_value=100, format="%.0f%%")})
-
-    st.subheader("Idols")
-    f1, f2, f3, f4, f5 = st.columns(5)
-    fb = f1.multiselect("Bot", sorted(df["bot"].unique()))
-    fg = f2.multiselect("Grupo", sorted(df["grupo"].unique(), key=str.casefold))
-    fp = f3.multiselect("Prioridade", PRIORIDADES)
-    fc = f4.multiselect("Categoria", CATEGORIAS)
-    busca = f5.text_input("Buscar idol")
-    if fb:
-        df = df[df["bot"].isin(fb)]
-    if fg:
-        df = df[df["grupo"].isin(fg)]
-    if fp:
-        df = df[df["prioridade"].isin(fp)]
-    if fc:
-        df = df[df["categoria"].isin(fc)]
-    if busca:
-        df = df[df["idol"].str.contains(busca, case=False, regex=False)
-                | df["grupo"].str.contains(busca, case=False, regex=False)]
-
-    df = df.copy()
-    df["progresso"] = (df["possuo"] / df["total"].where(df["total"] > 0) * 100).fillna(0)
-    df["faltam"] = df["total"] - df["possuo"]
-    ordem = st.selectbox("Ordenar por", ["Idol (A–Z)", "Grupo (A–Z)", "Menor progresso",
-                                         "Maior progresso", "Mais cartas faltando", "Prioridade"])
-    df = ordenar(df, ordem)
-    df["excluir"] = False
-
-    edited = st.data_editor(
-        df, hide_index=True, use_container_width=True,
-        disabled=["id", "progresso", "faltam"],
-        column_order=["bot", "grupo", "idol", "categoria", "prioridade",
-                      "total", "possuo", "faltam", "progresso", "image_url", "excluir"],
-        column_config={
-            "bot": st.column_config.SelectboxColumn("Bot", options=BOTS),
-            "grupo": "Grupo",
-            "idol": "Idol",
-            "categoria": st.column_config.SelectboxColumn("Categoria", options=CATEGORIAS),
-            "prioridade": st.column_config.SelectboxColumn("Prioridade", options=PRIORIDADES),
-            "total": st.column_config.NumberColumn("Total", min_value=0, step=1),
-            "possuo": st.column_config.NumberColumn("Tenho", min_value=0, step=1),
-            "faltam": st.column_config.NumberColumn("Faltam"),
-            "progresso": st.column_config.ProgressColumn(
-                "Progresso", min_value=0, max_value=100, format="%.0f%%"),
-            "image_url": st.column_config.TextColumn("URL da foto"),
-            "excluir": st.column_config.CheckboxColumn("Excluir"),
-        },
-    )
-
-    if st.button("💾 Salvar alterações", type="primary"):
-        erros = []
-        for r in edited.itertuples():
-            if r.excluir:
-                run("DELETE FROM colecao WHERE id=?", (int(r.id),))
-            elif r.total < 0 or r.possuo < 0:
-                erros.append(f"{r.idol} ({r.bot}): valores não podem ser negativos.")
-            elif r.possuo > r.total:
-                erros.append(f"{r.idol} ({r.bot}): 'Tenho' maior que 'Total'.")
-            else:
-                try:
-                    run("UPDATE colecao SET bot=?, grupo=?, idol=?, categoria=?, prioridade=?, "
-                        "total=?, possuo=?, image_url=? WHERE id=?",
-                        (r.bot, r.grupo, r.idol, r.categoria, r.prioridade,
-                         int(r.total), int(r.possuo), _url(r.image_url), int(r.id)))
-                except psycopg2.IntegrityError:
-                    erros.append(f"{r.idol} ({r.grupo}) já existe no bot {r.bot}.")
-        if erros:
-            for e in erros:
-                st.error(e)
-        else:
-            st.rerun()
-
-    st.download_button("⬇️ Baixar CSV", q("SELECT * FROM colecao").to_csv(index=False),
-                       "progresso.csv", "text/csv")
-
-
-# ---------------------------------------------------------------- Galeria
-with tab_gal:
-    st.write("A galeria usa os filtros e a ordenação da aba **Progresso**. "
-             "Cada card do mesmo idol (ex.: Miyeon 1, 2, 3) recebe uma foto diferente.")
-    tem_google = bool(_secret("GOOGLE_API_KEY") and _secret("GOOGLE_CSE_ID"))
-    st.caption("Fonte das fotos: " + ("Google (Custom Search, filtro de rosto) + Wikipedia."
-               if tem_google else "Wikipedia (configure as chaves do Google para buscar lá)."))
-
-    todas = q("SELECT image_url FROM colecao")["image_url"].map(_url).dropna()
-    contagem = todas.value_counts()
-    repetidas = set(contagem[contagem > 1].index)
-    df["url_foto"] = df["image_url"].map(_url)
-    falta = df["url_foto"].isna()
-    rep = df["url_foto"].isin(repetidas)
-
-    modo = st.radio("Buscar fotos para", ["Só as que faltam", "Faltam + repetidas",
-                                          "Todas nos filtros (substituir)"], horizontal=True)
-    alvo = {"Só as que faltam": df[falta],
-            "Faltam + repetidas": df[falta | rep],
-            "Todas nos filtros (substituir)": df}[modo]
-    c1, c2 = st.columns([1, 2])
-    limite = c1.number_input("Buscar no máximo", min_value=1, max_value=100, value=30)
-    st.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} com foto repetida nos filtros atuais")
-    if c2.button(f"🔎 Buscar fotos ({len(alvo)} cards)", disabled=alvo.empty):
-        barra = st.progress(0.0)
-        achou, falhou = 0, []
-        alvo = alvo.head(int(limite))
-        for i, r in enumerate(alvo.itertuples(), 1):
-            try:
-                if trocar_foto(r.id, r.idol, r.grupo, _url(r.url_foto) if modo != "Só as que faltam" else None):
-                    achou += 1
-                else:
-                    falhou.append(f"{r.idol} ({r.grupo})")
-            except Exception as e:
-                falhou.append(f"{r.idol} ({r.grupo}): {e}")
-            barra.progress(i / len(alvo))
-            time.sleep(0.2)
-        st.success(f"{achou} fotos atualizadas.")
-        if falhou:
-            st.warning("Sem foto nova: " + "; ".join(falhou)
-                       + ". Cole a URL manualmente na coluna 'URL da foto' da aba Progresso.")
-        else:
-            st.rerun()
-
-    st.divider()
-    cols = st.columns(5)
-    for i, r in enumerate(df.itertuples()):
-        with cols[i % 5]:
-            foto = _url(r.url_foto)
-            if foto:
-                st.image(foto, use_container_width=True)
-            else:
-                st.markdown("🖼️ *sem foto*")
-            aviso = " ⚠️ repetida" if foto in repetidas else ""
-            st.markdown(f"**{r.idol}**{aviso}  \n{r.grupo} · {r.bot}")
-            st.progress(max(0.0, min(r.progresso / 100, 1.0)), text=f"{r.possuo}/{r.total} · {r.progresso:.0f}%")
-            if st.button("🔄 Trocar foto", key=f"troca_{r.id}"):
-                try:
-                    if trocar_foto(r.id, r.idol, r.grupo, foto):
-                        st.rerun()
-                    else:
-                        st.warning("Não achei outra foto. Cole a URL na aba Progresso.")
-                except Exception as e:
-                    st.error(str(e))
