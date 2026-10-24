@@ -52,14 +52,14 @@ User-Agent e serializa as requisições, aguardando de 1,5 a 2,5 segundos entre 
 responder HTTP 429, o scraper respeita `Retry-After` ou pausa por uma hora; diante de HTTP 403,
 pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a busca em lote. O controle
 de ritmo e a pausa são compartilhados entre sessões no mesmo processo do Streamlit.
-Ao abrir o Painel, o BinderLog busca automaticamente os resumos dos cards visíveis que ainda não
-têm descrição. Nos cards de grupo completo, os resumos dos integrantes também são carregados ao
-abrir os detalhes do grupo e aparecem junto às áreas de eras e eventos de cada integrante. Os
-resumos incluem, quando disponíveis no perfil, a apresentação, os integrantes, a estreia e o álbum
-de estreia. O texto é traduzido para português brasileiro pelo serviço MyMemory e salvo no banco;
-abrir um card também permite carregar seu resumo individualmente. O texto público do perfil é
-enviado ao serviço de tradução. A busca respeita o limitador e as pausas do KProfiles; em caso de
-indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
+Ao abrir os detalhes de um card, o BinderLog apresenta a imagem ao lado do resumo e consulta o
+perfil correspondente no KProfiles. O resumo reúne, quando publicados pela fonte, a apresentação,
+os integrantes, os dados de estreia e outras informações factuais do perfil. Nos cards de grupo
+completo, os resumos dos integrantes também são carregados e aparecem junto às áreas de eras e
+eventos de cada integrante. O texto é traduzido para português brasileiro pelo serviço MyMemory e
+salvo no banco; textos longos são enviados em trechos para respeitar o limite por consulta. O texto
+público do perfil é enviado ao serviço de tradução. A busca respeita o limitador e as pausas do
+KProfiles; em caso de indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 

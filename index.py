@@ -25,7 +25,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
-VERSAO_DESCRICAO = 2
+VERSAO_DESCRICAO = 3
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -843,9 +843,6 @@ if card_selecionado:
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
     st.caption(f'{card["grupo"]} · Bot {card["bot"]}')
 
-    if card["url_foto"]:
-        st.image(card["url_foto"], width=180)
-
     descricao_card = card["descricao_pt"]
     fonte_descricao = card["descricao_url"]
     descricao_card_desatualizada = (
@@ -869,11 +866,20 @@ if card_selecionado:
             st.error(f"Não foi possível carregar a descrição: {erro}")
             registrar_falha_descricao("card", card_selecionado)
 
-    if pd.notna(descricao_card) and str(descricao_card).strip():
+    coluna_foto, coluna_sobre = st.columns([1, 2], gap="large", vertical_alignment="top")
+    with coluna_foto:
+        if card["url_foto"]:
+            st.image(card["url_foto"], width=260)
+        else:
+            st.info("Ainda não há uma imagem para este card.")
+    with coluna_sobre:
         st.subheader("Sobre")
-        st.write(str(descricao_card))
-        if pd.notna(fonte_descricao) and fonte_descricao:
-            st.caption(f"Fonte: [KProfiles]({fonte_descricao}) · tradução automática")
+        if pd.notna(descricao_card) and str(descricao_card).strip():
+            st.write(str(descricao_card))
+            if pd.notna(fonte_descricao) and fonte_descricao:
+                st.caption(f"Fonte: [KProfiles]({fonte_descricao}) · tradução automática")
+        else:
+            st.caption("O perfil ainda não tem um resumo disponível.")
 
     grupo_completo = card["idol"] == GRUPO_COMPLETO
     if grupo_completo:
