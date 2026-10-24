@@ -82,7 +82,7 @@ def _normalizar_nome(nome):
     return re.sub(r"[^a-z0-9]", "", str(nome).casefold())
 
 
-def _nome_em_texto_perfil(nome, texto):
+def nome_aparece_em_texto(nome, texto):
     tokens_nome = re.findall(
         r"[a-z0-9]+",
         unicodedata.normalize("NFKD", str(nome).casefold())
@@ -303,7 +303,7 @@ def buscar_imagens_kprofiles(tipo, base, grupo, nome_busca, termos_busca,
             try:
                 membros_grupo = _extrair_integrantes(html)
             except ValueError:
-                pass
+                continue
         alvos = {
             _normalizar_nome(membro),
             _normalizar_nome(aliases_busca.get(membro.casefold(), "")),
@@ -318,8 +318,12 @@ def buscar_imagens_kprofiles(tipo, base, grupo, nome_busca, termos_busca,
             nome_arquivo = _normalizar_nome(url.rsplit("/", 1)[-1])
             texto_alt = _normalizar_nome(alt)
             if tipo == "grupo" and any(
-                _nome_em_texto_perfil(integrante, f"{nome_arquivo} {alt}")
+                nome_aparece_em_texto(integrante, f"{nome_arquivo} {alt}")
                 for integrante in membros_grupo
+            ):
+                continue
+            if tipo == "grupo" and _normalizar_nome(grupo) not in (
+                nome_arquivo + texto_alt
             ):
                 continue
             if any(termo in nome_arquivo or termo in texto_alt

@@ -16,6 +16,7 @@ from kprofiles import (
     KProfilesRateLimited,
     buscar_imagens_kprofiles,
     buscar_integrantes_kprofiles,
+    nome_aparece_em_texto,
 )
 
 BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
@@ -286,6 +287,18 @@ def _imagens_wikipedia(tipo, base, grupo):
     if not titulo:
         return []
 
+    membros_grupo = []
+    if tipo == "grupo":
+        try:
+            membros_grupo, _ = buscar_integrantes_kprofiles(grupo)
+        except KProfilesRateLimited:
+            raise
+        except (requests.RequestException, ValueError) as erro:
+            raise ValueError(
+                f"Não foi possível confirmar os integrantes de {grupo}; "
+                "a busca não usará fotos que possam ser de uma integrante só."
+            ) from erro
+
     imagens = []
     consultas = (
         {
@@ -332,12 +345,18 @@ def _imagens_wikipedia(tipo, base, grupo):
                 if info.get("mime") not in ("image/jpeg", "image/png"):
                     continue
                 url = info.get("thumburl") or info.get("url")
-            nome_arquivo = _normalizar_nome_grupo(
-                pagina.get("title", "").rsplit("/", 1)[-1]
-            )
+            titulo_imagem = pagina.get("pageimage") or pagina.get("title", "")
+            titulo_imagem = str(titulo_imagem).rsplit("/", 1)[-1]
+            nome_arquivo = _normalizar_nome_grupo(titulo_imagem)
             if nome_arquivo.endswith(("svg", "logo", "flag", "symbol", "signature", "map")):
                 continue
-            if tipo != "grupo" and alvo_normalizado not in nome_arquivo:
+            if tipo == "grupo":
+                if alvo_normalizado not in nome_arquivo or any(
+                    nome_aparece_em_texto(membro, titulo_imagem)
+                    for membro in membros_grupo
+                ):
+                    continue
+            elif alvo_normalizado not in nome_arquivo:
                 continue
             if isinstance(url, str) and url.startswith("https://"):
                 url = url.split("?", 1)[0]
@@ -366,6 +385,8 @@ def buscar_candidatas(tipo, base, grupo):
     if time.time() >= st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
         try:
             candidatas.extend(_imagens_wikipedia(tipo, base, grupo))
+        except KProfilesRateLimited:
+            raise
         except WikipediaRateLimited as erro:
             st.session_state["wikipedia_fotos_cooldown_ate"] = time.time() + 3600
             erros.append(f"Wikipedia: {erro}")

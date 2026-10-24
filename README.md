@@ -43,10 +43,11 @@ montados automaticamente com grupo + integrante (ex.: `ALLDAY PROJECT Annie`) ou
 (solista) para idols solo. As páginas consultadas ficam em cache por até 24 horas. Se a Wikipédia
 limitar a busca, novas tentativas nessa fonte são pausadas por 1 hora. Se a foto vier errada ou
 faltar, use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
-No KProfiles, a busca prioriza a última foto listada no perfil. Para cards de grupo completo,
-fotos identificadas como sendo de integrantes individuais são deixadas de lado quando a lista
-de integrantes do perfil está disponível. A busca e a extração de dados do KProfiles ficam em
-`kprofiles.py`, separadas da interface e das demais integrações. O scraper se identifica no
+Para cards de grupo completo, somente são aceitas fotos identificadas com o nome do grupo;
+imagens de integrantes são excluídas e, se a lista de membros não puder ser confirmada, a fonte
+é ignorada. No KProfiles, a busca prioriza a última foto listada no perfil. A busca e a extração
+de dados do KProfiles ficam em `kprofiles.py`, separadas da interface e das demais integrações.
+O scraper se identifica no
 User-Agent e serializa as requisições, aguardando de 1,5 a 2,5 segundos entre elas. Se o site
 responder HTTP 429, o scraper respeita `Retry-After` ou pausa por uma hora; diante de HTTP 403,
 pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a busca em lote. O controle
