@@ -6,6 +6,7 @@ from html import escape as esc
 from html.parser import HTMLParser
 from contextlib import closing
 from pathlib import Path
+from urllib.parse import quote_plus, urljoin
 
 import pandas as pd
 import psycopg2
@@ -195,43 +196,11 @@ def _extrair_integrantes_kprofiles(html):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def buscar_integrantes_kprofiles(grupo):
-    headers = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
-    resposta = requests.get(
-        "https://kprofiles.com/",
-        params={"s": grupo},
-        headers=headers,
-        timeout=20,
-    )
-    resposta.raise_for_status()
-    busca = _KProfilesBuscaParser()
-    busca.feed(resposta.text)
-
-    grupo_normalizado = _normalizar_nome_grupo(grupo)
-    perfil_url = None
-    sufixos = (
-        "membersprofileandfactsupdated",
-        "membersprofileandfacts",
-        "membersprofileupdated",
-        "membersprofile",
-        "memberprofileandfacts",
-        "memberprofile",
-    )
-    for titulo, url in busca.resultados:
-        titulo_normalizado = _normalizar_nome_grupo(titulo)
-        for sufixo in sufixos:
-            if (titulo_normalizado.endswith(sufixo)
-                    and titulo_normalizado[:-len(sufixo)] == grupo_normalizado):
-                perfil_url = url
-                break
-        if perfil_url:
-            break
-
+    perfil_url = _url_perfil_kprofiles(grupo, grupo)
     if not perfil_url:
         raise ValueError(f"Não foi encontrado um perfil de integrantes para {grupo}.")
 
-    perfil = requests.get(perfil_url, headers=headers, timeout=20)
-    perfil.raise_for_status()
-    integrantes = _extrair_integrantes_kprofiles(perfil.text)
+    integrantes = _extrair_integrantes_kprofiles(_buscar_html(perfil_url))
     return integrantes, perfil_url
 
 
@@ -310,10 +279,6 @@ ALIAS_GRUPO = {
     "nct u": "NCT", "nct127": "NCT 127", "tts": "Girls' Generation-TTS",
     "triples": "tripleS", "got the beat": "GOT the Beat",
 }
-WIKI = "https://en.wikipedia.org/w/api.php"
-UA = {"User-Agent": "kpop-progresso/1.0"}
-
-
 def _url(x):
     return x.strip() if isinstance(x, str) and x.strip() else None
 
@@ -333,116 +298,226 @@ def contexto(idol, grupo):
     return ("solista" if solo else "pessoa"), base, g
 
 
-class GoogleQuotaExceeded(Exception):
+class KpoppingBlocked(Exception):
     pass
 
 
-def _google(consulta, exato, face):
-    key, cx = _secret("GOOGLE_API_KEY"), _secret("GOOGLE_CSE_ID")
-    if not (key and cx):
-        return []
-    params = {"key": key, "cx": cx, "q": consulta, "searchType": "image",
-              "num": 10, "safe": "active", "exactTerms": exato}
-    if face:
-        params["imgType"] = "face"
-    r = requests.get("https://www.googleapis.com/customsearch/v1", params=params, timeout=15)
-    if r.status_code == 429:
-        raise GoogleQuotaExceeded("Google Custom Search atingiu o limite de requisições.")
-    if r.status_code == 403:
-        try:
-            erro_google = r.json().get("error", {})
-        except ValueError:
-            erro_google = {}
-        detalhes = str(erro_google).casefold()
-        if any(termo in detalhes for termo in (
-            "quota", "ratelimit", "dailylimit", "userratelimit"
-        )):
-            raise GoogleQuotaExceeded("Google Custom Search atingiu o limite de requisições.")
-    r.raise_for_status()
-    out = []
-    for it in r.json().get("items") or []:
-        # a miniatura hospedada pelo Google costuma carregar melhor que o link original
-        u = it.get("image", {}).get("thumbnailLink") or it.get("link")
-        if u:
-            out.append(u)
-    return out
+class _SiteBuscaParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.links = []
+        self._link = None
+
+    def handle_starttag(self, tag, attrs):
+        atributos = dict(attrs)
+        if tag == "a":
+            self._link = {
+                "href": atributos.get("href", ""),
+                "title": atributos.get("title", ""),
+                "text": [],
+            }
+        elif tag == "img":
+            self.links.append({
+                "image": atributos.get("data-src")
+                or atributos.get("data-lazy-src")
+                or atributos.get("src", ""),
+                "alt": atributos.get("alt", ""),
+            })
+
+    def handle_data(self, data):
+        if self._link is not None:
+            self._link["text"].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._link is not None:
+            self.links.append({
+                "href": self._link["href"],
+                "title": self._link["title"],
+                "text": " ".join(" ".join(self._link["text"]).split()),
+            })
+            self._link = None
 
 
-def _wiki(params):
-    r = requests.get(WIKI, params={**params, "format": "json"}, headers=UA, timeout=15)
-    r.raise_for_status()
-    return r.json()
+class _ProfileImagesParser(HTMLParser):
+    def __init__(self, content_only=False):
+        super().__init__(convert_charrefs=True)
+        self.content_only = content_only
+        self.content_depth = 0
+        self.excluded_depth = 0
+        self.images = []
 
+    def handle_starttag(self, tag, attrs):
+        atributos = dict(attrs)
+        if tag == "div" and self.content_only:
+            classes = atributos.get("class", "").split()
+            if self.excluded_depth:
+                self.excluded_depth += 1
+            elif self.content_depth and any(
+                classe == "ad" or classe.startswith("ad-")
+                or classe.endswith("-ad")
+                or classe in {"ads", "advertisement", "sidebar", "related-posts"}
+                for classe in classes
+            ):
+                self.excluded_depth = 1
+            elif self.content_depth:
+                self.content_depth += 1
+            elif "entry-content" in classes or "profile-content" in classes:
+                self.content_depth = 1
+        elif tag == "img" and not self.excluded_depth and (
+            self.content_depth or not self.content_only
+        ):
+            src = (atributos.get("data-src") or atributos.get("data-lazy-src")
+                   or atributos.get("src", ""))
+            srcset = atributos.get("srcset", "")
+            if srcset:
+                src = srcset.split(",")[-1].strip().split(" ")[0] or src
+            if src:
+                self.images.append((src, atributos.get("alt", "")))
 
-def _wikipedia(tipo, base, grupo, n=8):
-    alvo = (grupo if tipo == "grupo" else base).casefold()
-    termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
-    achados = _wiki({"action": "query", "list": "search", "srsearch": termo,
-                     "srlimit": 5})["query"]["search"]
-    # só aceita o artigo se o título contém o nome procurado (evita idol errado)
-    titulo = next((x["title"] for x in achados if alvo in x["title"].casefold()), None)
-    if not titulo:
-        return []
-    out = []
-    d = _wiki({"action": "query", "titles": titulo, "prop": "pageimages",
-               "piprop": "thumbnail", "pithumbsize": 500})
-    for pg in d["query"]["pages"].values():
-        if "thumbnail" in pg:
-            out.append(pg["thumbnail"]["source"])
-    d = _wiki({"action": "query", "generator": "images", "titles": titulo, "gimlimit": 40,
-               "prop": "imageinfo", "iiprop": "url|mime", "iiurlwidth": 500})
-    for pg in ((d.get("query") or {}).get("pages") or {}).values():
-        info = (pg.get("imageinfo") or [{}])[0]
-        nome = pg.get("title", "").casefold()
-        if info.get("mime") not in ("image/jpeg", "image/png"):
-            continue
-        if any(w in nome for w in ("logo", "flag", "icon", "symbol", "signature", "map")):
-            continue
-        if tipo != "grupo" and base.casefold() not in nome:
-            continue  # em artigos de grupo, só fotos com o nome do idol no arquivo
-        u = info.get("thumburl") or info.get("url")
-        if u and u not in out:
-            out.append(u)
-    return out[:n]
+    def handle_endtag(self, tag):
+        if tag == "div":
+            if self.excluded_depth:
+                self.excluded_depth -= 1
+            elif self.content_depth:
+                self.content_depth -= 1
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def buscar_candidatas(tipo, base, grupo, usar_google=True):
-    """Usa Wikipedia primeiro e chama Google apenas se ela não encontrar imagens."""
-    try:
-        urls = _wikipedia(tipo, base, grupo)
-    except Exception as e:
-        erro_wikipedia = e
-        urls = []
-    else:
-        erro_wikipedia = None
+def _buscar_html(url, parametros=()):
+    resposta = requests.get(
+        url,
+        params=dict(parametros) if parametros else None,
+        headers={"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"},
+        timeout=20,
+    )
+    if "kpopping.com" in url and resposta.status_code == 403:
+        raise KpoppingBlocked("kpopping.com recusou a busca (HTTP 403).")
+    resposta.raise_for_status()
+    return resposta.text
 
-    if urls:
-        return list(dict.fromkeys(urls))
-    if not usar_google:
-        if erro_wikipedia:
-            raise erro_wikipedia
+
+def _url_perfil_kprofiles(query, esperado):
+    html = _buscar_html("https://kprofiles.com/", (("s", query),))
+    busca = _KProfilesBuscaParser()
+    busca.feed(html)
+    alvo = _normalizar_nome_grupo(esperado)
+    sufixos = (
+        "membersprofileandfactsupdated", "membersprofileandfacts",
+        "membersprofileupdated", "membersprofile", "memberprofileandfacts",
+        "memberprofile", "profileandfacts", "profile",
+    )
+    for titulo, url in busca.resultados:
+        titulo_normalizado = _normalizar_nome_grupo(titulo)
+        for sufixo in sufixos:
+            if (titulo_normalizado.endswith(sufixo)
+                    and titulo_normalizado[:-len(sufixo)] == alvo):
+                return url
+    for titulo, url in busca.resultados:
+        titulo_normalizado = _normalizar_nome_grupo(titulo)
+        if (titulo_normalizado.startswith(alvo)
+                and "membersprofile" in titulo_normalizado):
+            return url
+    return None
+
+
+def _imagens_kprofiles(tipo, base, grupo):
+    usar_perfil_do_grupo = bool(grupo and grupo.casefold() != "solo")
+    esperado = grupo if usar_perfil_do_grupo or tipo == "grupo" else base
+    query = esperado
+    perfil_url = _url_perfil_kprofiles(query, esperado)
+    if not perfil_url and esperado != base:
+        perfil_url = _url_perfil_kprofiles(base, base)
+    if not perfil_url:
         return []
 
+    parser = _ProfileImagesParser(content_only=True)
+    parser.feed(_buscar_html(perfil_url))
+    alvo = _normalizar_nome_grupo(grupo if tipo == "grupo" else base)
+    imagens = []
+    for imagem, alt in parser.images:
+        url = urljoin(perfil_url, imagem)
+        nome_arquivo = _normalizar_nome_grupo(url.rsplit("/", 1)[-1])
+        texto_alt = _normalizar_nome_grupo(alt)
+        if any(termo in nome_arquivo or termo in texto_alt
+               for termo in ("logo", "flag", "symbol", "signature", "map")):
+            continue
+        if alvo and alvo not in nome_arquivo and alvo not in texto_alt:
+            continue
+        if url not in imagens:
+            imagens.append(url)
+    return imagens[:12]
+
+
+def _slug_site(nome):
+    slug = re.sub(r"[^a-z0-9]+", "-", str(nome).casefold()).strip("-")
+    return quote_plus(slug)
+
+
+def _imagens_kpopping(tipo, base, grupo):
+    termo = grupo if tipo == "grupo" else base
+    slug = _slug_site(termo)
     if tipo == "grupo":
-        consulta, exato, face = f"{grupo} kpop group", grupo, False
+        perfil_urls = [f"https://kpopping.com/profiles/group/{slug}"]
     else:
-        extra = "solo singer" if tipo == "solista" else "kpop idol"
-        consulta, exato, face = f"{base} {grupo} {extra}".replace("  ", " "), base, True
+        busca_html = _buscar_html(
+            "https://kpopping.com/search", (("query", f"{termo} {grupo}".strip()),)
+        )
+        busca = _SiteBuscaParser()
+        busca.feed(busca_html)
+        alvo = _normalizar_nome_grupo(base)
+        perfil_urls = [
+            urljoin("https://kpopping.com", item.get("href", ""))
+            for item in busca.links
+            if "/profiles/" in item.get("href", "")
+            and alvo in _normalizar_nome_grupo(
+                item.get("href", "") + item.get("title", "") + item.get("text", "")
+            )
+        ]
+
+    for perfil_url in dict.fromkeys(perfil_urls):
+        parser = _ProfileImagesParser()
+        parser.feed(_buscar_html(perfil_url))
+        alvo = _normalizar_nome_grupo(base if tipo != "grupo" else grupo)
+        imagens = []
+        for imagem, alt in parser.images:
+            url = urljoin(perfil_url, imagem)
+            material = _normalizar_nome_grupo(url + alt)
+            if alvo and alvo not in material:
+                continue
+            if url not in imagens:
+                imagens.append(url)
+        if imagens:
+            return imagens[:12]
+    return []
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def buscar_candidatas(tipo, base, grupo, usar_kpopping=True):
+    """Busca imagens em KProfiles e usa kpopping.com como segunda fonte."""
+    erros = []
     try:
-        urls = _google(consulta, exato, face)
-    except Exception as e:
-        if isinstance(e, GoogleQuotaExceeded):
-            raise
-        if erro_wikipedia:
-            raise erro_wikipedia from e
-        raise
-    return list(dict.fromkeys(urls))
+        candidatas = _imagens_kprofiles(tipo, base, grupo)
+    except (requests.RequestException, ValueError) as erro:
+        erros.append(f"KProfiles: {erro}")
+        candidatas = []
+    if candidatas:
+        return list(dict.fromkeys(candidatas))
+    if usar_kpopping:
+        try:
+            candidatas = _imagens_kpopping(tipo, base, grupo)
+        except (requests.RequestException, ValueError, KpoppingBlocked) as erro:
+            erros.append(f"kpopping.com: {erro}")
+            candidatas = []
+        if candidatas:
+            return list(dict.fromkeys(candidatas))
+    if erros:
+        raise RuntimeError("Não foi possível pesquisar imagens. " + " | ".join(erros))
+    return []
 
 
-def pausar_google_se_cota_excedida(erro):
-    if isinstance(erro, GoogleQuotaExceeded):
-        st.session_state["google_fotos_cooldown_ate"] = time.time() + 86400
+def pausar_kpopping_se_bloqueado(erro):
+    if isinstance(erro, KpoppingBlocked) or "HTTP 403" in str(erro):
+        st.session_state["kpopping_fotos_cooldown_ate"] = time.time() + 86400
 
 
 def escolher(cands, usadas, atual=None):
@@ -459,9 +534,9 @@ def escolher(cands, usadas, atual=None):
 def trocar_foto(id_, idol, grupo, atual=None):
     """Busca e salva uma foto diferente das já usadas em outros cards."""
     tipo, base, g = contexto(idol, grupo)
-    cooldown_ate = st.session_state.get("google_fotos_cooldown_ate", 0)
-    usar_google = time.time() >= cooldown_ate
-    cands = buscar_candidatas(tipo, base, g, usar_google)
+    cooldown_ate = st.session_state.get("kpopping_fotos_cooldown_ate", 0)
+    usar_kpopping = time.time() >= cooldown_ate
+    cands = buscar_candidatas(tipo, base, g, usar_kpopping)
     outras = q("SELECT image_url FROM colecao WHERE id != ? AND image_url IS NOT NULL", (int(id_),))
     nova = escolher(cands, set(outras["image_url"]), atual)
     if nova:
@@ -1067,15 +1142,11 @@ with tab_fotos:
     if df_all.empty:
         st.info("Importe ou adicione idols primeiro.")
     else:
-        tem_google = bool(_secret("GOOGLE_API_KEY") and _secret("GOOGLE_CSE_ID"))
-        st.caption(
-            "Fonte das fotos: Wikipedia primeiro"
-            + ("; Google Custom Search como reserva." if tem_google
-               else ". Configure as chaves do Google para habilitar uma fonte reserva.")
-        )
-        if time.time() < st.session_state.get("google_fotos_cooldown_ate", 0):
-            st.info("A busca do Google está pausada por 24 horas após atingir o limite. "
-                    "A Wikipedia continua disponível.")
+        st.caption("Fontes das fotos: KProfiles primeiro e kpopping.com como reserva. "
+                   "As buscas ficam em cache por até 24 horas.")
+        if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
+            st.info("kpopping.com recusou as buscas recentemente; a fonte está pausada "
+                    "por 24 horas. O KProfiles continua disponível.")
         contagem = df_all["url_foto"].dropna().value_counts()
         repetidas = set(contagem[contagem > 1].index)
         fb2 = st.multiselect("Só estes bots (vazio = todos)", sorted(df_all["bot"].unique()), key="f_bots")
@@ -1102,7 +1173,7 @@ with tab_fotos:
                     else:
                         falhou.append(f"{r.idol} ({r.grupo})")
                 except Exception as e:
-                    pausar_google_se_cota_excedida(e)
+                    pausar_kpopping_se_bloqueado(e)
                     falhou.append(f"{r.idol} ({r.grupo}): {e}")
                 barra_p.progress(i / len(alvo))
                 time.sleep(0.2)
@@ -1131,7 +1202,7 @@ with tab_fotos:
                     else:
                         st.warning("Não achei outra foto. Cole uma URL abaixo.")
                 except Exception as e:
-                    pausar_google_se_cota_excedida(e)
+                    pausar_kpopping_se_bloqueado(e)
                     st.error(str(e))
             nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
             if st.button("Salvar URL", key="f_salva") and _url(nova):
