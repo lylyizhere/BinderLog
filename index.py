@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import time
 import tomllib
@@ -386,6 +387,7 @@ class _ProfileImagesParser(HTMLParser):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def _buscar_html(url, parametros=()):
+    time.sleep(random.uniform(0.0005, 0.0007))
     resposta = requests.get(
         url,
         params=dict(parametros) if parametros else None,
@@ -504,6 +506,7 @@ def _imagens_wikipedia(tipo, base, grupo):
     alvo_normalizado = _normalizar_nome_grupo(alvo)
     titulo = None
     for consulta in _termos_busca_imagem(tipo, base, grupo):
+        time.sleep(random.uniform(0.0005, 0.0007))
         resposta = requests.get(
             "https://en.wikipedia.org/w/api.php",
             params={
@@ -566,6 +569,7 @@ def _imagens_wikipedia(tipo, base, grupo):
         },
     )
     for parametros in consultas:
+        time.sleep(random.uniform(0.0005, 0.0007))
         resposta = requests.get(
             "https://en.wikipedia.org/w/api.php",
             params=parametros,
