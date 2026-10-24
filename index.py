@@ -816,6 +816,19 @@ a {color: var(--accent)}
 [data-testid="stRadioGroup"] [data-testid="stRadioOption"] > div > div:first-child > div {
     background:var(--panel-solid) !important;
 }
+[data-testid="stMultiSelectTagsContainer"] [data-tag] {
+    background:var(--accent-soft) !important;
+    border:1px solid var(--line-strong) !important;
+    border-radius:8px !important;
+    color:var(--text) !important;
+}
+[data-testid="stMultiSelectTagsContainer"] [data-tag] button {
+    color:var(--muted) !important;
+}
+[data-testid="stMultiSelectTagsContainer"] [data-tag] button:hover {
+    background:var(--accent-soft) !important;
+    color:var(--heading) !important;
+}
 
 button[kind="primary"], [data-testid="stBaseButton-primary"],
 [data-testid="stFormSubmitButton"] button {
