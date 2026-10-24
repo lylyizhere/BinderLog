@@ -804,6 +804,19 @@ a {color: var(--accent)}
 [data-testid="stTabs"] [data-baseweb="tab-highlight"],
 [data-testid="stTabs"] [data-baseweb="tab-border"] {display:none}
 
+[data-testid="stRadioGroup"] [data-testid="stRadioOption"] > div > div:first-child {
+    background:var(--panel-solid) !important;
+    border-color:var(--line-strong) !important;
+}
+[data-testid="stRadioGroup"] [data-testid="stRadioOption"][data-selected="true"]
+> div > div:first-child {
+    background:var(--accent) !important;
+    border-color:var(--accent) !important;
+}
+[data-testid="stRadioGroup"] [data-testid="stRadioOption"] > div > div:first-child > div {
+    background:var(--panel-solid) !important;
+}
+
 button[kind="primary"], [data-testid="stBaseButton-primary"],
 [data-testid="stFormSubmitButton"] button {
     border:1px solid var(--line-strong) !important;
@@ -1612,6 +1625,7 @@ with tab_fotos:
             fb2 = st.multiselect(
                 "Filtrar por bot (vazio = todos)",
                 sorted(df_all["bot"].unique()),
+                placeholder="Escolha os bots",
                 key="f_bots",
             )
             dff = df_all[df_all["bot"].isin(fb2)] if fb2 else df_all
@@ -1641,7 +1655,6 @@ with tab_fotos:
                 value=30,
                 key="f_lim",
             )
-            c_limite.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} repetidas")
             if c_busca.button(
                 f"🔎 Buscar fotos ({len(alvo)} idols)",
                 disabled=alvo.empty,
@@ -1678,6 +1691,7 @@ with tab_fotos:
                     )
                 if not pausa_kprofiles and not falhou:
                     st.rerun()
+            st.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} repetidas")
 
         with st.container(border=True):
             st.subheader("Ajustar foto individual")
