@@ -333,6 +333,10 @@ def contexto(idol, grupo):
     return ("solista" if solo else "pessoa"), base, g
 
 
+class GoogleQuotaExceeded(Exception):
+    pass
+
+
 def _google(consulta, exato, face):
     key, cx = _secret("GOOGLE_API_KEY"), _secret("GOOGLE_CSE_ID")
     if not (key and cx):
@@ -342,6 +346,18 @@ def _google(consulta, exato, face):
     if face:
         params["imgType"] = "face"
     r = requests.get("https://www.googleapis.com/customsearch/v1", params=params, timeout=15)
+    if r.status_code == 429:
+        raise GoogleQuotaExceeded("Google Custom Search atingiu o limite de requisições.")
+    if r.status_code == 403:
+        try:
+            erro_google = r.json().get("error", {})
+        except ValueError:
+            erro_google = {}
+        detalhes = str(erro_google).casefold()
+        if any(termo in detalhes for termo in (
+            "quota", "ratelimit", "dailylimit", "userratelimit"
+        )):
+            raise GoogleQuotaExceeded("Google Custom Search atingiu o limite de requisições.")
     r.raise_for_status()
     out = []
     for it in r.json().get("items") or []:
@@ -390,27 +406,43 @@ def _wikipedia(tipo, base, grupo, n=8):
     return out[:n]
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def buscar_candidatas(tipo, base, grupo):
-    """Lista de URLs candidatas (Google primeiro, depois Wikipedia), sem repetição."""
+@st.cache_data(ttl=86400, show_spinner=False)
+def buscar_candidatas(tipo, base, grupo, usar_google=True):
+    """Usa Wikipedia primeiro e chama Google apenas se ela não encontrar imagens."""
+    try:
+        urls = _wikipedia(tipo, base, grupo)
+    except Exception as e:
+        erro_wikipedia = e
+        urls = []
+    else:
+        erro_wikipedia = None
+
+    if urls:
+        return list(dict.fromkeys(urls))
+    if not usar_google:
+        if erro_wikipedia:
+            raise erro_wikipedia
+        return []
+
     if tipo == "grupo":
         consulta, exato, face = f"{grupo} kpop group", grupo, False
     else:
         extra = "solo singer" if tipo == "solista" else "kpop idol"
         consulta, exato, face = f"{base} {grupo} {extra}".replace("  ", " "), base, True
-    urls, erro = [], None
     try:
-        urls += _google(consulta, exato, face)
+        urls = _google(consulta, exato, face)
     except Exception as e:
-        erro = e
-    try:
-        urls += _wikipedia(tipo, base, grupo)
-    except Exception as e:
-        erro = erro or e
-    urls = list(dict.fromkeys(urls))
-    if not urls and erro:
-        raise erro
-    return urls
+        if isinstance(e, GoogleQuotaExceeded):
+            raise
+        if erro_wikipedia:
+            raise erro_wikipedia from e
+        raise
+    return list(dict.fromkeys(urls))
+
+
+def pausar_google_se_cota_excedida(erro):
+    if isinstance(erro, GoogleQuotaExceeded):
+        st.session_state["google_fotos_cooldown_ate"] = time.time() + 86400
 
 
 def escolher(cands, usadas, atual=None):
@@ -427,7 +459,9 @@ def escolher(cands, usadas, atual=None):
 def trocar_foto(id_, idol, grupo, atual=None):
     """Busca e salva uma foto diferente das já usadas em outros cards."""
     tipo, base, g = contexto(idol, grupo)
-    cands = buscar_candidatas(tipo, base, g)
+    cooldown_ate = st.session_state.get("google_fotos_cooldown_ate", 0)
+    usar_google = time.time() >= cooldown_ate
+    cands = buscar_candidatas(tipo, base, g, usar_google)
     outras = q("SELECT image_url FROM colecao WHERE id != ? AND image_url IS NOT NULL", (int(id_),))
     nova = escolher(cands, set(outras["image_url"]), atual)
     if nova:
@@ -1034,8 +1068,14 @@ with tab_fotos:
         st.info("Importe ou adicione idols primeiro.")
     else:
         tem_google = bool(_secret("GOOGLE_API_KEY") and _secret("GOOGLE_CSE_ID"))
-        st.caption("Fonte das fotos: " + ("Google (Custom Search, filtro de rosto) + Wikipedia."
-                   if tem_google else "Wikipedia (configure as chaves do Google para buscar lá)."))
+        st.caption(
+            "Fonte das fotos: Wikipedia primeiro"
+            + ("; Google Custom Search como reserva." if tem_google
+               else ". Configure as chaves do Google para habilitar uma fonte reserva.")
+        )
+        if time.time() < st.session_state.get("google_fotos_cooldown_ate", 0):
+            st.info("A busca do Google está pausada por 24 horas após atingir o limite. "
+                    "A Wikipedia continua disponível.")
         contagem = df_all["url_foto"].dropna().value_counts()
         repetidas = set(contagem[contagem > 1].index)
         fb2 = st.multiselect("Só estes bots (vazio = todos)", sorted(df_all["bot"].unique()), key="f_bots")
@@ -1062,6 +1102,7 @@ with tab_fotos:
                     else:
                         falhou.append(f"{r.idol} ({r.grupo})")
                 except Exception as e:
+                    pausar_google_se_cota_excedida(e)
                     falhou.append(f"{r.idol} ({r.grupo}): {e}")
                 barra_p.progress(i / len(alvo))
                 time.sleep(0.2)
@@ -1090,6 +1131,7 @@ with tab_fotos:
                     else:
                         st.warning("Não achei outra foto. Cole uma URL abaixo.")
                 except Exception as e:
+                    pausar_google_se_cota_excedida(e)
                     st.error(str(e))
             nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
             if st.button("Salvar URL", key="f_salva") and _url(nova):

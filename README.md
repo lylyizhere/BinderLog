@@ -36,10 +36,12 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
 
 ## Fotos dos idols
 
-O botão **Buscar fotos** (aba Galeria) procura imagens na Wikipedia e, se configurado, no Google
-(Programmable Search Engine). A Custom Search JSON API do Google está fechada para novos clientes
-e será descontinuada em 01/01/2027, então pode não funcionar numa conta nova. Se a foto vier errada
-ou faltar, use **🔄 Trocar foto** ou cole a URL na coluna "URL da foto" da aba Progresso.
+O botão **Buscar fotos** (aba Galeria) procura primeiro na Wikipedia e usa o Google
+(Programmable Search Engine) apenas como reserva, se configurado. Ao detectar que a cota do Google
+foi atingida, o app pausa novas chamadas à API por 24 horas e continua usando a Wikipedia.
+A Custom Search JSON API do Google está fechada para novos clientes e será descontinuada em
+01/01/2027, então pode não funcionar numa conta nova. Se a foto vier errada ou faltar, use
+**🔄 Trocar foto** ou cole a URL da imagem no campo da aba Fotos.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 
