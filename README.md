@@ -53,13 +53,17 @@ responder HTTP 429, o scraper respeita `Retry-After` ou pausa por uma hora; dian
 pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a busca em lote. O controle
 de ritmo e a pausa são compartilhados entre sessões no mesmo processo do Streamlit.
 Ao abrir os detalhes de um card, o BinderLog apresenta a imagem ao lado do resumo e consulta o
-perfil correspondente no KProfiles. O resumo reúne, quando publicados pela fonte, a apresentação,
-os integrantes, os dados de estreia e outras informações factuais do perfil. Nos cards de grupo
-completo, os resumos dos integrantes também são carregados e aparecem junto às áreas de eras e
-eventos de cada integrante. O texto é traduzido para português brasileiro pelo serviço MyMemory e
-salvo no banco; textos longos são enviados em trechos para respeitar o limite por consulta. O texto
-público do perfil é enviado ao serviço de tradução. A busca respeita o limitador e as pausas do
-KProfiles; em caso de indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
+perfil correspondente no KProfiles. A busca prioriza o nome e o grupo do card e confere se a
+apresentação do perfil confirma esse contexto; se não confirmar, o perfil é descartado em vez de
+mostrar uma descrição possivelmente errada. Resumos antigos são atualizados ao abrir o card, e o
+texto antigo não é mostrado se a atualização falhar. O resumo reúne, quando publicados pela fonte,
+a apresentação, os integrantes, os dados de estreia e outras informações factuais do perfil. Nos
+cards de grupo completo, os resumos dos integrantes também são carregados e aparecem junto às
+áreas de eras e eventos de cada integrante. O texto é traduzido para português brasileiro pelo
+serviço MyMemory e salvo no banco; textos longos são enviados em trechos para respeitar o limite
+por consulta. O texto público do perfil é enviado ao serviço de tradução. A busca respeita o
+limitador e as pausas do KProfiles; em caso de indisponibilidade, o app mostra um aviso e aguarda
+antes de tentar novamente.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 

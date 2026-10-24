@@ -208,44 +208,41 @@ def _buscar_html(url, parametros=()):
     return resposta.text
 
 
-def _url_perfil(query, esperado, grupo_esperado=""):
+def _urls_perfil(query, esperado, grupo_esperado=""):
     html = _buscar_html("https://kprofiles.com/", (("s", query),))
     busca = _BuscaParser()
     busca.feed(html)
-    alvo = _normalizar_nome(esperado)
     sufixos = (
         "membersprofileandfactsupdated", "membersprofileandfacts",
         "membersprofileupdated", "membersprofile", "memberprofileandfacts",
         "memberprofile", "profileandfacts", "profile",
     )
-    grupo_normalizado = _normalizar_nome(grupo_esperado)
     candidatos = []
     for titulo, url in busca.resultados:
         titulo_normalizado = _normalizar_nome(titulo)
-        url_normalizada = _normalizar_nome(url)
         for sufixo in sufixos:
             if not titulo_normalizado.endswith(sufixo):
                 continue
-            nome_perfil = titulo_normalizado[:-len(sufixo)]
-            if alvo and alvo in nome_perfil:
+            titulo_perfil = titulo[:-len(sufixo)]
+            if nome_aparece_em_texto(esperado, titulo_perfil):
                 grupo_corresponde = bool(
-                    grupo_normalizado
-                    and (
-                        grupo_normalizado in titulo_normalizado
-                        or grupo_normalizado in url_normalizada
-                    )
+                    grupo_esperado
+                    and nome_aparece_em_texto(grupo_esperado, titulo)
                 )
                 candidatos.append(
                     (
                         not grupo_corresponde,
-                        len(nome_perfil) - len(alvo),
-                        nome_perfil.find(alvo),
-                        nome_perfil != alvo,
+                        len(titulo_perfil) - len(esperado),
                         url,
                     )
                 )
                 break
-    return min(candidatos)[4] if candidatos else None
+    return list(dict.fromkeys(item[2] for item in sorted(candidatos)))
+
+
+def _url_perfil(query, esperado, grupo_esperado=""):
+    candidatos = _urls_perfil(query, esperado, grupo_esperado)
+    return candidatos[0] if candidatos else None
 
 
 def _extrair_integrantes(html):
@@ -373,6 +370,7 @@ def _extrair_info_perfil(html, nomes, tipo):
         partes.append("Outras informacoes: " + " ".join(fatos))
     return {
         "descricao": " ".join(partes),
+        "introducao": introducao,
         "estreia": estreia,
         "album": album,
         "membros": integrantes,
@@ -390,24 +388,27 @@ def buscar_perfil_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
             perfis.append((grupo, base))
 
     consultadas = set()
+    contexto_grupo = grupo if grupo.casefold() != "solo" else ""
     for consulta, esperado in perfis:
         chave = (consulta.casefold(), esperado.casefold())
         if chave in consultadas:
             continue
         consultadas.add(chave)
-        contexto_grupo = grupo if tipo != "grupo" and grupo.casefold() != "solo" else ""
-        perfil_url = _url_perfil(consulta, esperado, contexto_grupo)
-        if not perfil_url:
-            continue
-        try:
-            info = _extrair_info_perfil(
-                _buscar_html(perfil_url),
-                (nome_busca, base, grupo if tipo == "grupo" else ""),
-                tipo,
-            )
-        except ValueError:
-            continue
-        return {**info, "url": perfil_url}
+        for perfil_url in _urls_perfil(consulta, esperado, contexto_grupo):
+            html = _buscar_html(perfil_url)
+            try:
+                info = _extrair_info_perfil(
+                    html,
+                    (nome_busca, base, grupo if tipo == "grupo" else ""),
+                    tipo,
+                )
+            except ValueError:
+                continue
+            if contexto_grupo and not nome_aparece_em_texto(
+                contexto_grupo, info["introducao"]
+            ):
+                continue
+            return {**info, "url": perfil_url}
     raise ValueError(f"Não foi encontrada uma descrição no KProfiles para {base}.")
 
 

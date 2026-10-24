@@ -25,7 +25,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
-VERSAO_DESCRICAO = 4
+VERSAO_DESCRICAO = 5
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -849,6 +849,9 @@ if card_selecionado:
         pd.isna(card["descricao_versao"])
         or int(card["descricao_versao"]) < VERSAO_DESCRICAO
     )
+    if descricao_card_desatualizada:
+        descricao_card = None
+        fonte_descricao = None
     if (
         pd.isna(descricao_card) or not str(descricao_card).strip()
         or descricao_card_desatualizada
@@ -954,6 +957,9 @@ if card_selecionado:
                     pd.isna(membro.descricao_versao)
                     or int(membro.descricao_versao) < VERSAO_DESCRICAO
                 )
+                if descricao_membro_desatualizada:
+                    descricao_membro = None
+                    fonte_membro = None
                 if (
                     (
                         pd.isna(descricao_membro)
