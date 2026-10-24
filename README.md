@@ -37,21 +37,21 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
 
 ## Fotos dos idols
 
-O botão **Buscar fotos** (aba Fotos) procura imagens em KProfiles e Wikipédia, combina as
-candidatas para permitir fotos diferentes do mesmo idol em cards separados. Os termos são
-montados automaticamente com grupo + integrante (ex.: `ALLDAY PROJECT Annie`) ou com `Soloist`
-(solista) para idols solo. As páginas consultadas ficam em cache por até 24 horas. Se a Wikipédia
-limitar a busca, novas tentativas nessa fonte são pausadas por 1 hora. Se a foto vier errada ou
-faltar, use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
+O botão **Buscar fotos** (aba Fotos) procura primeiro no KProfiles e usa kpopping.com como
+alternativa quando não encontra imagens. Os termos são montados automaticamente com grupo +
+integrante (ex.: `ALLDAY PROJECT Annie`) ou com `Soloist` para idols solo. As páginas consultadas
+ficam em cache por até 24 horas. Se o kpopping limitar ou bloquear o acesso, novas tentativas
+nessa fonte são pausadas temporariamente, sem contornar a restrição. Se a foto vier errada ou
+faltar, use **🔄 Buscar outra foto** ou cole a URL da imagem no campo da aba Fotos.
 Para cards de grupo completo, somente são aceitas fotos identificadas com o nome do grupo;
 imagens de integrantes são excluídas e, se a lista de membros não puder ser confirmada, a fonte
-é ignorada. No KProfiles, a busca prioriza a última foto listada no perfil. A busca e a extração
-de dados do KProfiles ficam em `kprofiles.py`, separadas da interface e das demais integrações.
-O scraper se identifica no
-User-Agent e serializa as requisições, aguardando de 1,5 a 2,5 segundos entre elas. Se o site
-responder HTTP 429, o scraper respeita `Retry-After` ou pausa por uma hora; diante de HTTP 403,
-pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a busca em lote. O controle
-de ritmo e a pausa são compartilhados entre sessões no mesmo processo do Streamlit.
+é ignorada. No KProfiles, a busca prioriza a última foto listada no perfil. A busca e a extração de
+dados do KProfiles ficam em `kprofiles.py`, separadas da interface e das demais integrações. O
+scraper do KProfiles se identifica no User-Agent e serializa as requisições, aguardando de 1,5 a
+2,5 segundos entre elas. Se o site responder HTTP 429, respeita `Retry-After` ou pausa por uma
+hora; diante de HTTP 403, pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a
+busca em lote. O controle de ritmo e a pausa são compartilhados entre sessões no mesmo processo
+do Streamlit.
 Ao abrir os detalhes de um card, o BinderLog apresenta a imagem ao lado do resumo e consulta o
 perfil correspondente no KProfiles. A busca prioriza o nome e o grupo do card e confere se a
 apresentação do perfil confirma esse contexto; se não confirmar, o perfil é descartado em vez de

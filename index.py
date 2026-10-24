@@ -1,11 +1,12 @@
 import os
-import random
 import re
 import time
 import tomllib
-from html import escape as esc
 from contextlib import closing
+from html import escape as esc
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import quote, urljoin
 
 import pandas as pd
 import psycopg2
@@ -252,139 +253,95 @@ def _termos_busca_imagem(tipo, base, grupo):
     return list(dict.fromkeys(termo.strip() for termo in termos if termo.strip()))
 
 
-class WikipediaRateLimited(Exception):
-    pass
+class KpoppingUnavailable(requests.RequestException):
+    def __init__(self, status_code):
+        self.status_code = status_code
+        self.cooldown = 86400 if status_code == 403 else 3600
+        super().__init__(
+            f"kpopping.com respondeu HTTP {status_code}; essa fonte foi pausada."
+        )
+
+
+class _KpoppingImageParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.images = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "img":
+            return
+        atributos = dict(attrs)
+        src = (atributos.get("data-src") or atributos.get("data-lazy-src")
+               or atributos.get("src", ""))
+        srcset = atributos.get("srcset", "")
+        if srcset:
+            src = srcset.split(",")[-1].strip().split(" ")[0] or src
+        if src:
+            self.images.append((src, atributos.get("alt", "")))
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def _imagens_wikipedia(tipo, base, grupo):
+def _imagens_kpopping(tipo, base, grupo):
     alvo = grupo if tipo == "grupo" else PESSOA_ALIAS_BUSCA.get(base.casefold(), base)
-    cabecalhos = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
-
     alvo_normalizado = _normalizar_nome_grupo(alvo)
-    titulo = None
-    for consulta in _termos_busca_imagem(tipo, base, grupo):
-        time.sleep(random.uniform(0.0005, 0.0007))
-        resposta = requests.get(
-            "https://en.wikipedia.org/w/api.php",
-            params={
-                "action": "query",
-                "list": "search",
-                "srsearch": consulta,
-                "srlimit": 5,
-                "format": "json",
-            },
-            headers=cabecalhos,
-            timeout=20,
-        )
-        if resposta.status_code == 429:
-            raise WikipediaRateLimited("A API da Wikipédia limitou as buscas (HTTP 429).")
-        resposta.raise_for_status()
-        dados = resposta.json()
-        if not isinstance(dados, dict):
-            raise ValueError("A API da Wikipédia retornou uma resposta inválida.")
-        resultados = (dados.get("query") or {}).get("search", [])
-        if not isinstance(resultados, list):
-            raise ValueError("A API da Wikipédia retornou resultados em formato inválido.")
-        titulos = [
-            item.get("title", "")
-            for item in resultados
-            if isinstance(item, dict)
-            and alvo_normalizado
-            and alvo_normalizado in _normalizar_nome_grupo(item.get("title", ""))
-        ]
-        if titulos:
-            titulo = min(
-                titulos,
-                key=lambda item: (
-                    len(_normalizar_nome_grupo(item)) - len(alvo_normalizado),
-                    _normalizar_nome_grupo(item).find(alvo_normalizado),
-                ),
-            )
-            break
-    if not titulo:
-        return []
-
     membros_grupo = []
     if tipo == "grupo":
-        try:
-            membros_grupo, _ = buscar_integrantes_kprofiles(grupo)
-        except KProfilesRateLimited:
-            raise
-        except (requests.RequestException, ValueError) as erro:
-            raise ValueError(
-                f"Não foi possível confirmar os integrantes de {grupo}; "
-                "a busca não usará fotos que possam ser de uma integrante só."
-            ) from erro
+        membros_grupo, _ = buscar_integrantes_kprofiles(grupo)
+
+    paginas = []
+    if tipo == "grupo":
+        slug = quote(grupo, safe="")
+        paginas.append(("https://kpopping.com/profiles/group/" + slug, None))
+    paginas.extend(
+        ("https://kpopping.com/search", {"query": termo})
+        for termo in _termos_busca_imagem(tipo, base, grupo)[:3]
+    )
 
     imagens = []
-    consultas = (
-        {
-            "action": "query",
-            "titles": titulo,
-            "prop": "pageimages",
-            "piprop": "thumbnail",
-            "pithumbsize": 500,
-            "format": "json",
-        },
-        {
-            "action": "query",
-            "generator": "images",
-            "titles": titulo,
-            "gimlimit": 40,
-            "prop": "imageinfo",
-            "iiprop": "url|mime",
-            "iiurlwidth": 500,
-            "format": "json",
-        },
-    )
-    for parametros in consultas:
-        time.sleep(random.uniform(0.0005, 0.0007))
+    for url, parametros in paginas:
         resposta = requests.get(
-            "https://en.wikipedia.org/w/api.php",
+            url,
             params=parametros,
-            headers=cabecalhos,
+            headers={
+                "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
+            },
             timeout=20,
         )
-        if resposta.status_code == 429:
-            raise WikipediaRateLimited("A API da Wikipédia limitou as buscas (HTTP 429).")
+        if resposta.status_code in (403, 429):
+            raise KpoppingUnavailable(resposta.status_code)
+        if resposta.status_code == 404:
+            continue
         resposta.raise_for_status()
-        dados = resposta.json()
-        if not isinstance(dados, dict):
-            raise ValueError("A API da Wikipédia retornou uma resposta inválida.")
-        paginas = (dados.get("query") or {}).get("pages") or {}
-        for pagina in paginas.values():
-            if not isinstance(pagina, dict):
+        parser = _KpoppingImageParser()
+        parser.feed(resposta.text)
+        for src, alt in parser.images:
+            imagem_url = urljoin(resposta.url, src)
+            contexto_imagem = f"{alt} {imagem_url}"
+            nome_normalizado = _normalizar_nome_grupo(contexto_imagem)
+            if (
+                not imagem_url.startswith("https://")
+                or alvo_normalizado not in nome_normalizado
+            ):
                 continue
-            thumbnail = pagina.get("thumbnail", {})
-            url = thumbnail.get("source") if isinstance(thumbnail, dict) else None
-            info = (pagina.get("imageinfo") or [{}])[0]
-            if not url and isinstance(info, dict):
-                if info.get("mime") not in ("image/jpeg", "image/png"):
-                    continue
-                url = info.get("thumburl") or info.get("url")
-            titulo_imagem = pagina.get("pageimage") or pagina.get("title", "")
-            titulo_imagem = str(titulo_imagem).rsplit("/", 1)[-1]
-            nome_arquivo = _normalizar_nome_grupo(titulo_imagem)
-            if nome_arquivo.endswith(("svg", "logo", "flag", "symbol", "signature", "map")):
+            if tipo == "grupo" and any(
+                nome_aparece_em_texto(membro, contexto_imagem)
+                for membro in membros_grupo
+            ):
                 continue
-            if tipo == "grupo":
-                if alvo_normalizado not in nome_arquivo or any(
-                    nome_aparece_em_texto(membro, titulo_imagem)
-                    for membro in membros_grupo
-                ):
-                    continue
-            elif alvo_normalizado not in nome_arquivo:
+            if any(
+                termo in nome_normalizado
+                for termo in ("logo", "flag", "symbol", "signature", "map", "avatar")
+            ):
                 continue
-            if isinstance(url, str) and url.startswith("https://"):
-                url = url.split("?", 1)[0]
-                if url not in imagens:
-                    imagens.append(url)
+            if imagem_url not in imagens:
+                imagens.append(imagem_url)
+        if imagens:
+            break
     return imagens[:12]
 
 
 def buscar_candidatas(tipo, base, grupo):
-    """Combina imagens encontradas no KProfiles e na Wikipedia."""
+    """Busca primeiro no KProfiles e usa kpopping.com como alternativa."""
     candidatas = []
     erros = []
     try:
@@ -400,16 +357,20 @@ def buscar_candidatas(tipo, base, grupo):
         raise
     except (requests.RequestException, ValueError) as erro:
         erros.append(f"KProfiles: {erro}")
-    if time.time() >= st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
+    if not candidatas and time.time() >= st.session_state.get(
+        "kpopping_fotos_cooldown_ate", 0
+    ):
         try:
-            candidatas.extend(_imagens_wikipedia(tipo, base, grupo))
+            candidatas.extend(_imagens_kpopping(tipo, base, grupo))
+        except KpoppingUnavailable as erro:
+            st.session_state["kpopping_fotos_cooldown_ate"] = (
+                time.time() + erro.cooldown
+            )
+            erros.append(f"kpopping.com: {erro}")
         except KProfilesRateLimited:
             raise
-        except WikipediaRateLimited as erro:
-            st.session_state["wikipedia_fotos_cooldown_ate"] = time.time() + 3600
-            erros.append(f"Wikipedia: {erro}")
         except (requests.RequestException, ValueError, KeyError, TypeError) as erro:
-            erros.append(f"Wikipedia: {erro}")
+            erros.append(f"kpopping.com: {erro}")
     if candidatas:
         return list(dict.fromkeys(candidatas))
     if erros:
@@ -1636,81 +1597,135 @@ with tab_fotos:
     if df_all.empty:
         st.info("Importe ou adicione idols primeiro.")
     else:
-        st.caption("Fontes das fotos: KProfiles e Wikipédia. "
-                   "As fontes são combinadas e as buscas ficam em cache por até 24 horas.")
-        if time.time() < st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
-            st.info("A Wikipédia limitou as buscas recentemente; essa fonte está pausada "
-                    "por 1 hora.")
-        contagem = df_all["url_foto"].dropna().value_counts()
-        repetidas = set(contagem[contagem > 1].index)
-        fb2 = st.multiselect("Só estes bots (vazio = todos)", sorted(df_all["bot"].unique()), key="f_bots")
-        dff = df_all[df_all["bot"].isin(fb2)] if fb2 else df_all
-        dff = ordenar(dff, "Idol (A–Z)")
-        falta = dff["url_foto"].isna()
-        rep = dff["url_foto"].isin(repetidas)
-        modo = st.radio("Buscar fotos para", ["Só as que faltam", "Faltam + repetidas",
-                                              "Todas (substituir)"], horizontal=True, key="f_modo")
-        alvo = {"Só as que faltam": dff[falta], "Faltam + repetidas": dff[falta | rep],
-                "Todas (substituir)": dff}[modo]
-        c1, c2 = st.columns([1, 2])
-        limite = c1.number_input("Buscar no máximo", min_value=1, max_value=100, value=30, key="f_lim")
-        st.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} com foto repetida")
-        if c2.button(f"🔎 Buscar fotos ({len(alvo)} idols)", disabled=alvo.empty):
-            barra_p = st.progress(0.0)
-            achou, falhou = 0, []
-            pausa_kprofiles = None
-            alvo = alvo.head(int(limite))
-            for i, r in enumerate(alvo.itertuples(), 1):
-                try:
-                    atual = _url(r.url_foto) if modo != "Só as que faltam" else None
-                    if trocar_foto(r.id, r.idol, r.grupo, atual):
-                        achou += 1
-                    else:
-                        falhou.append(f"{r.idol} ({r.grupo})")
-                except KProfilesRateLimited as e:
-                    pausa_kprofiles = str(e)
-                    barra_p.progress(i / len(alvo))
-                    break
-                except Exception as e:
-                    falhou.append(f"{r.idol} ({r.grupo}): {e}")
-                barra_p.progress(i / len(alvo))
-                time.sleep(0.2)
-            st.success(f"{achou} fotos atualizadas.")
-            if pausa_kprofiles:
-                st.warning(
-                    f"{pausa_kprofiles} O restante da busca em lote foi interrompido."
-                )
-            if falhou:
-                st.warning("Sem foto nova: " + "; ".join(falhou) + ". Use o ajuste individual abaixo.")
-            if not pausa_kprofiles and not falhou:
-                st.rerun()
+        st.caption(
+            "As buscas usam KProfiles primeiro e kpopping.com como alternativa. "
+            "Os resultados ficam em cache por até 24 horas."
+        )
+        if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
+            st.info(
+                "kpopping.com está temporariamente pausado após limitar uma busca. "
+                "O KProfiles continua disponível."
+            )
 
-        st.divider()
-        st.subheader("Ajustar a foto de um idol")
-        rotulo = {int(r.id): f"{r.idol} — {r.grupo} ({r.bot})" for r in ordenar(df_all, "Idol (A–Z)").itertuples()}
-        sel_id = st.selectbox("Idol", list(rotulo), format_func=rotulo.get, key="f_idol")
-        linha = df_all[df_all["id"] == sel_id].iloc[0]
-        atual = _url(linha["url_foto"])
-        g1, g2 = st.columns([1, 2])
-        if atual:
-            g1.image(atual, width=180)
-        else:
-            g1.caption("sem foto")
-        with g2:
-            if st.button("🔄 Trocar por outra foto", key="f_troca"):
-                try:
-                    if trocar_foto(sel_id, linha["idol"], linha["grupo"], atual):
-                        st.rerun()
-                    else:
-                        st.warning("Não achei outra foto. Cole uma URL abaixo.")
-                except KProfilesRateLimited as e:
-                    st.warning(str(e))
-                except Exception as e:
-                    st.error(str(e))
-            nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
-            if st.button("Salvar URL", key="f_salva") and _url(nova):
-                run("UPDATE colecao SET image_url=? WHERE id=?", (_url(nova), int(sel_id)))
-                st.rerun()
+        with st.container(border=True):
+            st.subheader("Buscar fotos em lote")
+            fb2 = st.multiselect(
+                "Filtrar por bot (vazio = todos)",
+                sorted(df_all["bot"].unique()),
+                key="f_bots",
+            )
+            dff = df_all[df_all["bot"].isin(fb2)] if fb2 else df_all
+            dff = ordenar(dff, "Idol (A–Z)")
+            contagem = dff["url_foto"].dropna().value_counts()
+            repetidas = set(contagem[contagem > 1].index)
+            falta = dff["url_foto"].isna()
+            rep = dff["url_foto"].isin(repetidas)
+            modo = st.radio(
+                "Buscar fotos para",
+                ["Só as que faltam", "Faltam + repetidas", "Todas (substituir)"],
+                horizontal=True,
+                key="f_modo",
+            )
+            alvo = {
+                "Só as que faltam": dff[falta],
+                "Faltam + repetidas": dff[falta | rep],
+                "Todas (substituir)": dff,
+            }[modo]
+            c_limite, c_busca = st.columns(
+                [1, 2], vertical_alignment="bottom"
+            )
+            limite = c_limite.number_input(
+                "Limite por busca",
+                min_value=1,
+                max_value=100,
+                value=30,
+                key="f_lim",
+            )
+            c_limite.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} repetidas")
+            if c_busca.button(
+                f"🔎 Buscar fotos ({len(alvo)} idols)",
+                disabled=alvo.empty,
+                width="stretch",
+            ):
+                barra_p = st.progress(0.0)
+                achou, falhou = 0, []
+                pausa_kprofiles = None
+                alvo = alvo.head(int(limite))
+                for i, r in enumerate(alvo.itertuples(), 1):
+                    try:
+                        atual = _url(r.url_foto) if modo != "Só as que faltam" else None
+                        if trocar_foto(r.id, r.idol, r.grupo, atual):
+                            achou += 1
+                        else:
+                            falhou.append(f"{r.idol} ({r.grupo})")
+                    except KProfilesRateLimited as e:
+                        pausa_kprofiles = str(e)
+                        barra_p.progress(i / len(alvo))
+                        break
+                    except Exception as e:
+                        falhou.append(f"{r.idol} ({r.grupo}): {e}")
+                    barra_p.progress(i / len(alvo))
+                    time.sleep(0.2)
+                st.success(f"{achou} fotos atualizadas.")
+                if pausa_kprofiles:
+                    st.warning(
+                        f"{pausa_kprofiles} O restante da busca em lote foi interrompido."
+                    )
+                if falhou:
+                    st.warning(
+                        "Sem foto nova: " + "; ".join(falhou)
+                        + ". Use o ajuste individual abaixo."
+                    )
+                if not pausa_kprofiles and not falhou:
+                    st.rerun()
+
+        with st.container(border=True):
+            st.subheader("Ajustar foto individual")
+            rotulo = {
+                int(r.id): f"{r.idol} — {r.grupo} ({r.bot})"
+                for r in ordenar(df_all, "Idol (A–Z)").itertuples()
+            }
+            sel_id = st.selectbox(
+                "Idol",
+                list(rotulo),
+                format_func=rotulo.get,
+                key="f_idol",
+            )
+            linha = df_all[df_all["id"] == sel_id].iloc[0]
+            atual = _url(linha["url_foto"])
+            g1, g2 = st.columns([1, 2], gap="large", vertical_alignment="center")
+            with g1:
+                if atual:
+                    st.image(atual, width=220)
+                else:
+                    st.info("Este card ainda não tem foto.")
+            with g2:
+                if st.button(
+                    "🔄 Buscar outra foto",
+                    key="f_troca",
+                    width="stretch",
+                ):
+                    try:
+                        if trocar_foto(sel_id, linha["idol"], linha["grupo"], atual):
+                            st.rerun()
+                        else:
+                            st.warning("Não achei outra foto. Cole uma URL abaixo.")
+                    except KProfilesRateLimited as e:
+                        st.warning(str(e))
+                    except Exception as e:
+                        st.error(str(e))
+                nova = st.text_input("URL direta da foto", key=f"f_url_{sel_id}")
+                if st.button(
+                    "Salvar URL",
+                    key="f_salva",
+                    disabled=not _url(nova),
+                    width="stretch",
+                ):
+                    run(
+                        "UPDATE colecao SET image_url=? WHERE id=?",
+                        (_url(nova), int(sel_id)),
+                    )
+                    st.rerun()
 
 # ---------------------------------------------------------------- Importar CSV
 with tab_imp:
