@@ -276,7 +276,7 @@ PESSOA_GRUPO = {
 }
 ALIAS_GRUPO = {
     "snsd": "Girls' Generation", "(g)i-dle": "(G)I-DLE", "i-dle": "(G)I-DLE",
-    "nct u": "NCT", "nct127": "NCT 127", "tts": "Girls' Generation-TTS",
+    "nct u": "NCT U", "nct127": "NCT 127", "tts": "Girls' Generation-TTS",
     "triples": "tripleS", "got the beat": "GOT the Beat",
 }
 def _url(x):
@@ -292,13 +292,17 @@ def contexto(idol, grupo):
         return "grupo", grupo, ALIAS_GRUPO.get(grupo.casefold(), grupo)
     base = re.sub(r"\s+\d+$", "", idol).strip()
     solo = grupo.casefold() == "solo"
-    g = PESSOA_GRUPO.get(base.casefold())
-    if not g:
-        g = "" if solo else ALIAS_GRUPO.get(grupo.casefold(), grupo)
+    g = PESSOA_GRUPO.get(base.casefold()) if solo else (
+        ALIAS_GRUPO.get(grupo.casefold(), grupo) or PESSOA_GRUPO.get(base.casefold(), "")
+    )
     return ("solista" if solo else "pessoa"), base, g
 
 
 class KpoppingBlocked(Exception):
+    pass
+
+
+class WikipediaRateLimited(Exception):
     pass
 
 
@@ -434,6 +438,7 @@ def _imagens_kprofiles(tipo, base, grupo):
         if grupo and grupo.casefold() != "solo":
             perfis.append((grupo, grupo, base))
 
+    todas_imagens = []
     for consulta, esperado, membro in perfis:
         perfil_url = _url_perfil_kprofiles(consulta, esperado)
         if not perfil_url:
@@ -456,8 +461,8 @@ def _imagens_kprofiles(tipo, base, grupo):
             if url not in imagens:
                 imagens.append(url)
         if imagens:
-            return imagens[:12]
-    return []
+            todas_imagens.extend(imagens)
+    return list(dict.fromkeys(todas_imagens))[:24]
 
 
 def _slug_site(nome):
@@ -509,36 +514,46 @@ def _imagens_wikipedia(tipo, base, grupo):
     termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
     cabecalhos = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
 
-    resposta = requests.get(
-        "https://en.wikipedia.org/w/api.php",
-        params={
-            "action": "query",
-            "list": "search",
-            "srsearch": termo,
-            "srlimit": 5,
-            "format": "json",
-        },
-        headers=cabecalhos,
-        timeout=20,
-    )
-    resposta.raise_for_status()
-    dados = resposta.json()
-    if not isinstance(dados, dict):
-        raise ValueError("A API da Wikipédia retornou uma resposta inválida.")
-    resultados = (dados.get("query") or {}).get("search", [])
-    if not isinstance(resultados, list):
-        raise ValueError("A API da Wikipédia retornou resultados em formato inválido.")
     alvo_normalizado = _normalizar_nome_grupo(alvo)
-    titulo = next(
-        (
+    titulo = None
+    for consulta in dict.fromkeys((termo, alvo)):
+        resposta = requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "list": "search",
+                "srsearch": consulta,
+                "srlimit": 5,
+                "format": "json",
+            },
+            headers=cabecalhos,
+            timeout=20,
+        )
+        if resposta.status_code == 429:
+            raise WikipediaRateLimited("A API da Wikipédia limitou as buscas (HTTP 429).")
+        resposta.raise_for_status()
+        dados = resposta.json()
+        if not isinstance(dados, dict):
+            raise ValueError("A API da Wikipédia retornou uma resposta inválida.")
+        resultados = (dados.get("query") or {}).get("search", [])
+        if not isinstance(resultados, list):
+            raise ValueError("A API da Wikipédia retornou resultados em formato inválido.")
+        titulos = [
             item.get("title", "")
             for item in resultados
             if isinstance(item, dict)
             and alvo_normalizado
             and alvo_normalizado in _normalizar_nome_grupo(item.get("title", ""))
-        ),
-        None,
-    )
+        ]
+        if titulos:
+            titulo = min(
+                titulos,
+                key=lambda item: (
+                    len(_normalizar_nome_grupo(item)) - len(alvo_normalizado),
+                    _normalizar_nome_grupo(item).find(alvo_normalizado),
+                ),
+            )
+            break
     if not titulo:
         return []
 
@@ -570,6 +585,8 @@ def _imagens_wikipedia(tipo, base, grupo):
             headers=cabecalhos,
             timeout=20,
         )
+        if resposta.status_code == 429:
+            raise WikipediaRateLimited("A API da Wikipédia limitou as buscas (HTTP 429).")
         resposta.raise_for_status()
         dados = resposta.json()
         if not isinstance(dados, dict):
@@ -585,38 +602,44 @@ def _imagens_wikipedia(tipo, base, grupo):
                 if info.get("mime") not in ("image/jpeg", "image/png"):
                     continue
                 url = info.get("thumburl") or info.get("url")
-            if isinstance(url, str) and url.startswith("https://") and url not in imagens:
-                imagens.append(url)
+            nome_arquivo = _normalizar_nome_grupo(
+                pagina.get("title", "").rsplit("/", 1)[-1]
+            )
+            if nome_arquivo.endswith(("svg", "logo", "flag", "symbol", "signature", "map")):
+                continue
+            if tipo != "grupo" and alvo_normalizado not in nome_arquivo:
+                continue
+            if isinstance(url, str) and url.startswith("https://"):
+                url = url.split("?", 1)[0]
+                if url not in imagens:
+                    imagens.append(url)
     return imagens[:12]
 
 
 def buscar_candidatas(tipo, base, grupo, usar_kpopping=True):
     """Busca imagens em KProfiles, kpopping.com e Wikipedia, nessa ordem."""
+    candidatas = []
     erros = []
     try:
-        candidatas = _imagens_kprofiles(tipo, base, grupo)
+        candidatas.extend(_imagens_kprofiles(tipo, base, grupo))
     except (requests.RequestException, ValueError) as erro:
         erros.append(f"KProfiles: {erro}")
-        candidatas = []
-    if candidatas:
-        return list(dict.fromkeys(candidatas))
     if usar_kpopping:
         try:
-            candidatas = _imagens_kpopping(tipo, base, grupo)
+            candidatas.extend(_imagens_kpopping(tipo, base, grupo))
         except KpoppingBlocked as erro:
             pausar_kpopping_se_bloqueado(erro)
             erros.append(f"kpopping.com: {erro}")
-            candidatas = []
         except (requests.RequestException, ValueError) as erro:
             erros.append(f"kpopping.com: {erro}")
-            candidatas = []
-        if candidatas:
-            return list(dict.fromkeys(candidatas))
-    try:
-        candidatas = _imagens_wikipedia(tipo, base, grupo)
-    except (requests.RequestException, ValueError, KeyError, TypeError) as erro:
-        erros.append(f"Wikipedia: {erro}")
-        candidatas = []
+    if time.time() >= st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
+        try:
+            candidatas.extend(_imagens_wikipedia(tipo, base, grupo))
+        except WikipediaRateLimited as erro:
+            st.session_state["wikipedia_fotos_cooldown_ate"] = time.time() + 3600
+            erros.append(f"Wikipedia: {erro}")
+        except (requests.RequestException, ValueError, KeyError, TypeError) as erro:
+            erros.append(f"Wikipedia: {erro}")
     if candidatas:
         return list(dict.fromkeys(candidatas))
     if erros:
@@ -1253,11 +1276,14 @@ with tab_fotos:
     if df_all.empty:
         st.info("Importe ou adicione idols primeiro.")
     else:
-        st.caption("Fontes das fotos: KProfiles, kpopping.com e Wikipédia, nessa ordem. "
-                   "As buscas ficam em cache por até 24 horas.")
+        st.caption("Fontes das fotos: KProfiles, kpopping.com e Wikipédia. "
+                   "As fontes são combinadas e as buscas ficam em cache por até 24 horas.")
         if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
             st.info("kpopping.com recusou as buscas recentemente; a fonte está pausada "
                     "por 24 horas. O KProfiles continua disponível.")
+        if time.time() < st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
+            st.info("A Wikipédia limitou as buscas recentemente; essa fonte está pausada "
+                    "por 1 hora.")
         contagem = df_all["url_foto"].dropna().value_counts()
         repetidas = set(contagem[contagem > 1].index)
         fb2 = st.multiselect("Só estes bots (vazio = todos)", sorted(df_all["bot"].unique()), key="f_bots")
