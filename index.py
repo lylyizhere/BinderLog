@@ -406,46 +406,58 @@ def _url_perfil_kprofiles(query, esperado):
         "membersprofileupdated", "membersprofile", "memberprofileandfacts",
         "memberprofile", "profileandfacts", "profile",
     )
+    candidatos = []
     for titulo, url in busca.resultados:
         titulo_normalizado = _normalizar_nome_grupo(titulo)
         for sufixo in sufixos:
-            if (titulo_normalizado.endswith(sufixo)
-                    and titulo_normalizado[:-len(sufixo)] == alvo):
-                return url
-    for titulo, url in busca.resultados:
-        titulo_normalizado = _normalizar_nome_grupo(titulo)
-        if (titulo_normalizado.startswith(alvo)
-                and "membersprofile" in titulo_normalizado):
-            return url
-    return None
+            if not titulo_normalizado.endswith(sufixo):
+                continue
+            nome_perfil = titulo_normalizado[:-len(sufixo)]
+            if alvo and alvo in nome_perfil:
+                candidatos.append(
+                    (
+                        len(nome_perfil) - len(alvo),
+                        nome_perfil.find(alvo),
+                        nome_perfil != alvo,
+                        url,
+                    )
+                )
+                break
+    return min(candidatos)[3] if candidatos else None
 
 
 def _imagens_kprofiles(tipo, base, grupo):
-    usar_perfil_do_grupo = bool(grupo and grupo.casefold() != "solo")
-    esperado = grupo if usar_perfil_do_grupo or tipo == "grupo" else base
-    query = esperado
-    perfil_url = _url_perfil_kprofiles(query, esperado)
-    if not perfil_url and esperado != base:
-        perfil_url = _url_perfil_kprofiles(base, base)
-    if not perfil_url:
-        return []
+    if tipo == "grupo":
+        perfis = [(grupo, grupo, "")]
+    else:
+        perfis = [(base, base, "")]
+        if grupo and grupo.casefold() != "solo":
+            perfis.append((grupo, grupo, base))
 
-    parser = _ProfileImagesParser(content_only=True)
-    parser.feed(_buscar_html(perfil_url))
-    alvo = _normalizar_nome_grupo(grupo if tipo == "grupo" else base)
-    imagens = []
-    for imagem, alt in parser.images:
-        url = urljoin(perfil_url, imagem)
-        nome_arquivo = _normalizar_nome_grupo(url.rsplit("/", 1)[-1])
-        texto_alt = _normalizar_nome_grupo(alt)
-        if any(termo in nome_arquivo or termo in texto_alt
-               for termo in ("logo", "flag", "symbol", "signature", "map")):
+    for consulta, esperado, membro in perfis:
+        perfil_url = _url_perfil_kprofiles(consulta, esperado)
+        if not perfil_url:
             continue
-        if alvo and alvo not in nome_arquivo and alvo not in texto_alt:
-            continue
-        if url not in imagens:
-            imagens.append(url)
-    return imagens[:12]
+        parser = _ProfileImagesParser(content_only=True)
+        parser.feed(_buscar_html(perfil_url))
+        alvo = _normalizar_nome_grupo(membro)
+        imagens = []
+        for imagem, alt in parser.images:
+            url = urljoin(perfil_url, imagem)
+            if url.partition("?")[0].casefold().endswith(".svg"):
+                continue
+            nome_arquivo = _normalizar_nome_grupo(url.rsplit("/", 1)[-1])
+            texto_alt = _normalizar_nome_grupo(alt)
+            if any(termo in nome_arquivo or termo in texto_alt
+                   for termo in ("logo", "flag", "symbol", "signature", "map")):
+                continue
+            if alvo and alvo not in nome_arquivo and alvo not in texto_alt:
+                continue
+            if url not in imagens:
+                imagens.append(url)
+        if imagens:
+            return imagens[:12]
+    return []
 
 
 def _slug_site(nome):
