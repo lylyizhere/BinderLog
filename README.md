@@ -7,6 +7,7 @@ Acompanhe o progresso da sua coleção de cards de K-pop nos bots do Discord (Ga
 - Cadastro de idols por bot, com total de cartas, quantidade que você tem e % de progresso
 - Prioridade (Alta/Média/Baixa) e categoria (Grupo/Solo)
 - Cadastro de eras (nome, sigla e 1–3 diamantes) e eventos (nome, sigla automática, marcadores e ícone sugerido pelo nome), com dados independentes por card
+- Destaque das três coleções mais avançadas de cada bot na página inicial
 - Cards de grupo completo buscam os integrantes no KProfiles e mostram um bloco por pessoa, com eras, eventos e um resumo individual
 - Importação dos CSVs da **Garam** (*Bancodedados* e *Priolist*)
 - Filtros, busca e ordenação alfabética (ou por progresso, cartas faltando, prioridade)
