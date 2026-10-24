@@ -615,7 +615,7 @@ with tab_painel:
                     with st.container(key=f"card_{r.id}"):
                         nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
                         st.markdown(
-                            f'<a class="card-link" href="?card={int(r.id)}" '
+                            f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
                             f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
                             f'{card_html(r)}</a>',
                             unsafe_allow_html=True)
