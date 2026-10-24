@@ -382,7 +382,8 @@ header[data-testid="stHeader"]{background:transparent}
 [class*="st-key-card_"] [data-testid="stHorizontalBlock"]{padding:0 14px;flex-wrap:nowrap;gap:.3rem}
 [class*="st-key-card_"] [data-testid="stColumn"]{min-width:0}
 [class*="st-key-card_"] button{width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:#1b2036;border:1px solid var(--line);color:#e8eaf2}
-[class*="st-key-detalhes_"] button{width:100%;height:auto;min-height:38px;padding:8px 12px;border-radius:10px;color:#e8eaf2}
+[class*="st-key-card_"] .card-link{display:block;color:inherit;text-decoration:none;cursor:pointer}
+[class*="st-key-card_"] .card-link:hover .nm{text-decoration:underline;text-decoration-color:var(--p2);text-underline-offset:4px}
 .ph{position:relative;aspect-ratio:3/4;overflow:hidden;background:#1a1f35}
 .ph img{width:100%;height:100%;object-fit:cover;object-position:top}
 .ph.empty{display:grid;place-items:center;background:linear-gradient(135deg,var(--c1),var(--c2))}
@@ -440,14 +441,6 @@ def mostrar_mais():
     st.session_state["n_cards"] = st.session_state.get("n_cards", 12) + 12
 
 
-def abrir_detalhes(id_):
-    st.session_state["card_selecionado"] = int(id_)
-
-
-def voltar_painel():
-    st.session_state.pop("card_selecionado", None)
-
-
 @st.dialog("Adicionar idol / bot")
 def dialog_adicionar():
     with st.form("novo", clear_on_submit=True):
@@ -484,16 +477,27 @@ ORDENS = ["Idol (A–Z)", "Grupo (A–Z)", "Menor progresso", "Maior progresso",
           "Mais cartas faltando", "Prioridade"]
 
 # ---------------------------------------------------------------- Detalhes do card
-card_selecionado = st.session_state.get("card_selecionado")
-if card_selecionado is not None:
-    selecionado = df_all[df_all["id"] == int(card_selecionado)]
+card_selecionado = st.query_params.get("card")
+if card_selecionado:
+    try:
+        card_selecionado = int(card_selecionado)
+    except ValueError:
+        st.error("O identificador do card na URL é inválido.")
+        st.query_params.pop("card", None)
+        st.stop()
+
+    selecionado = df_all[df_all["id"] == card_selecionado]
     if selecionado.empty:
         st.warning("Este card não está mais na coleção.")
-        st.button("← Voltar ao painel", on_click=voltar_painel)
+        if st.button("← Voltar ao painel"):
+            st.query_params.pop("card", None)
+            st.rerun()
         st.stop()
 
     card = selecionado.iloc[0]
-    st.button("← Voltar ao painel", on_click=voltar_painel)
+    if st.button("← Voltar ao painel"):
+        st.query_params.pop("card", None)
+        st.rerun()
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
     st.caption(f'{card["grupo"]} · Bot {card["bot"]}')
 
@@ -609,7 +613,12 @@ with tab_painel:
             for i, r in enumerate(vis.head(n).itertuples()):
                 with cols[i % 4]:
                     with st.container(key=f"card_{r.id}"):
-                        st.markdown(card_html(r), unsafe_allow_html=True)
+                        nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
+                        st.markdown(
+                            f'<a class="card-link" href="?card={int(r.id)}" '
+                            f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
+                            f'{card_html(r)}</a>',
+                            unsafe_allow_html=True)
                         c1, c2, c3, c4 = st.columns([1, 1.7, 1, 1.1], vertical_alignment="center")
                         c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
                                   disabled=bool(r.possuo <= 0))
@@ -617,8 +626,6 @@ with tab_painel:
                         c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
                                   disabled=bool(r.possuo >= r.total))
                         c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
-                        st.button("Eras e eventos", key=f"detalhes_{r.id}", width="stretch",
-                                  on_click=abrir_detalhes, args=(r.id,))
             if len(vis) > n:
                 st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
                           width="stretch")
