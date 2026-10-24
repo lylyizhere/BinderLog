@@ -620,6 +620,7 @@ header[data-testid="stHeader"]{background:transparent}
 .bg,.bp{position:absolute;top:10px;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(10,12,20,.62);backdrop-filter:blur(6px)}
 .bg{left:10px;text-transform:uppercase;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bp{right:10px;color:var(--p2)}
+.card-info{padding:2px 0 8px;background:var(--card)}
 .nm{padding:2px 14px 0;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-desc{padding:5px 14px 0;color:var(--mut);font-size:13px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .cnt{text-align:center;font-weight:700;font-size:15px;white-space:nowrap}
@@ -662,7 +663,7 @@ def card_html(r, descricao_pt=None):
         resumo = f'<div class="card-desc">{esc(str(descricao).strip())}</div>'
     else:
         resumo = ""
-    return ph + f'<div class="nm">{esc(nome)}</div>' + resumo
+    return ph + f'<div class="card-info"><div class="nm">{esc(nome)}</div>{resumo}</div>'
 
 
 # ---------------------------------------------------------------- Ações
