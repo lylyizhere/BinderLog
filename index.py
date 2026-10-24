@@ -272,8 +272,9 @@ PESSOA_GRUPO = {
     "taeyeon": "Girls' Generation", "yoona": "Girls' Generation",
     "taeyong": "NCT", "seulgi": "Red Velvet", "wendy": "Red Velvet",
     "irene": "Red Velvet", "joy": "Red Velvet", "jiwoo": "KARD", "somin": "KARD",
-    "jonghyun": "SHINee", "yeji": "ITZY",
+    "jonghyun": "SHINee", "yeji": "ITZY", "jurin asaya": "XG",
 }
+PESSOA_ALIAS_BUSCA = {"eunbi": "Kwon Eunbi", "jurin asaya": "Jurin"}
 ALIAS_GRUPO = {
     "snsd": "Girls' Generation", "(g)i-dle": "(G)I-DLE", "i-dle": "(G)I-DLE",
     "nct u": "NCT U", "nct127": "NCT 127", "tts": "Girls' Generation-TTS",
@@ -301,10 +302,16 @@ def contexto(idol, grupo):
 def _termos_busca_imagem(tipo, base, grupo):
     if tipo == "grupo":
         return [grupo]
-    if tipo == "solista":
-        termos = [f"{base} Soloist", base]
-    else:
-        termos = [f"{grupo} {base}", f"{base} {grupo}", base]
+    nomes = list(dict.fromkeys(
+        (base, PESSOA_ALIAS_BUSCA.get(base.casefold(), base))
+    ))
+    termos = []
+    for nome in nomes:
+        if tipo == "solista":
+            termos.append(f"{nome} Soloist")
+        if grupo and grupo.casefold() != "solo":
+            termos.extend((f"{grupo} {nome}", f"{nome} {grupo}"))
+        termos.append(nome)
     return list(dict.fromkeys(termo.strip() for termo in termos if termo.strip()))
 
 
@@ -402,8 +409,9 @@ def _imagens_kprofiles(tipo, base, grupo):
     if tipo == "grupo":
         perfis = [(grupo, grupo, "")]
     else:
+        nome_busca = PESSOA_ALIAS_BUSCA.get(base.casefold(), base)
         perfis = [
-            (termo, base, "")
+            (termo, nome_busca, "")
             for termo in _termos_busca_imagem(tipo, base, grupo)
         ]
         if grupo and grupo.casefold() != "solo":
@@ -421,7 +429,11 @@ def _imagens_kprofiles(tipo, base, grupo):
             continue
         parser = _ProfileImagesParser(content_only=True)
         parser.feed(_buscar_html(perfil_url))
-        alvo = _normalizar_nome_grupo(membro)
+        alvos = {
+            _normalizar_nome_grupo(membro),
+            _normalizar_nome_grupo(PESSOA_ALIAS_BUSCA.get(membro.casefold(), "")),
+        }
+        alvos.discard("")
         imagens = []
         for imagem, alt in parser.images:
             url = urljoin(perfil_url, imagem)
@@ -432,7 +444,9 @@ def _imagens_kprofiles(tipo, base, grupo):
             if any(termo in nome_arquivo or termo in texto_alt
                    for termo in ("logo", "flag", "symbol", "signature", "map")):
                 continue
-            if alvo and alvo not in nome_arquivo and alvo not in texto_alt:
+            if alvos and not any(
+                alvo in nome_arquivo or alvo in texto_alt for alvo in alvos
+            ):
                 continue
             if url not in imagens:
                 imagens.append(url)
@@ -443,7 +457,7 @@ def _imagens_kprofiles(tipo, base, grupo):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def _imagens_wikipedia(tipo, base, grupo):
-    alvo = grupo if tipo == "grupo" else base
+    alvo = grupo if tipo == "grupo" else PESSOA_ALIAS_BUSCA.get(base.casefold(), base)
     cabecalhos = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
 
     alvo_normalizado = _normalizar_nome_grupo(alvo)
