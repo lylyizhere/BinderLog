@@ -80,6 +80,15 @@ def run_many(sql, linhas):
                 cur.execute(_sql(sql), linha)
 
 
+def sigla_evento(nome):
+    palavras = re.findall(r"\w+", str(nome), flags=re.UNICODE)
+    return "".join(palavra[0] for palavra in palavras).upper()
+
+
+def eh_happy_birthday(nome):
+    return re.sub(r"[^a-z]", "", str(nome).casefold()) == "happybirthday"
+
+
 @st.cache_resource
 def init_db():
     run("""CREATE TABLE IF NOT EXISTS colecao (
@@ -99,15 +108,27 @@ def init_db():
         colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
         nome TEXT NOT NULL,
         sigla TEXT NOT NULL DEFAULT '',
+        diamantes INTEGER NOT NULL DEFAULT 1,
         descricao TEXT NOT NULL DEFAULT '')""")
     run("ALTER TABLE colecao_eras ADD COLUMN IF NOT EXISTS sigla TEXT NOT NULL DEFAULT ''")
+    run("ALTER TABLE colecao_eras ADD COLUMN IF NOT EXISTS diamantes INTEGER NOT NULL DEFAULT 1")
     run("""CREATE TABLE IF NOT EXISTS colecao_eventos (
         id SERIAL PRIMARY KEY,
         colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
         nome TEXT NOT NULL,
         sigla TEXT NOT NULL DEFAULT '',
+        marcadores INTEGER NOT NULL DEFAULT 1,
         descricao TEXT NOT NULL DEFAULT '')""")
     run("ALTER TABLE colecao_eventos ADD COLUMN IF NOT EXISTS sigla TEXT NOT NULL DEFAULT ''")
+    run("ALTER TABLE colecao_eventos ADD COLUMN IF NOT EXISTS marcadores INTEGER NOT NULL DEFAULT 1")
+    eventos = q("SELECT id, nome, sigla FROM colecao_eventos")
+    siglas_atualizadas = [
+        (sigla_evento(evento.nome), int(evento.id))
+        for evento in eventos.itertuples()
+        if evento.sigla != sigla_evento(evento.nome)
+    ]
+    if siglas_atualizadas:
+        run_many("UPDATE colecao_eventos SET sigla=? WHERE id=?", siglas_atualizadas)
     try:
         run("UPDATE colecao SET idol=? WHERE idol IN ('Todos os membros', '-')",
             (GRUPO_COMPLETO,))
@@ -441,6 +462,25 @@ def mostrar_mais():
     st.session_state["n_cards"] = st.session_state.get("n_cards", 12) + 12
 
 
+def adicionar_evento(card_id):
+    chave_nome = f"evento_nome_{card_id}"
+    nome = st.session_state.get(chave_nome, "").strip()
+    chave_erro = f"evento_erro_{card_id}"
+    if not nome:
+        st.session_state[chave_erro] = "Informe o nome do evento."
+        return
+
+    marcador = 1
+    if eh_happy_birthday(nome):
+        marcador = int(st.session_state.get(f"evento_marcadores_{card_id}", 1))
+    run("INSERT INTO colecao_eventos (colecao_id, nome, sigla, marcadores) "
+        "VALUES (?,?,?,?)",
+        (int(card_id), nome, sigla_evento(nome), marcador))
+    st.session_state[chave_nome] = ""
+    st.session_state[f"evento_marcadores_{card_id}"] = 1
+    st.session_state.pop(chave_erro, None)
+
+
 @st.dialog("Adicionar idol / bot")
 def dialog_adicionar():
     with st.form("novo", clear_on_submit=True):
@@ -510,44 +550,56 @@ if card_selecionado:
         with st.form(f"form_era_{card_selecionado}", clear_on_submit=True):
             nome_era = st.text_input("Nome da era")
             sigla_era = st.text_input("Sigla da era")
+            diamantes_era = st.selectbox("Diamantes da era", [1, 2, 3], index=0,
+                                         format_func=lambda n: "💎" * n)
             enviar_era = st.form_submit_button("Adicionar era", type="primary")
         if enviar_era:
             if not nome_era.strip() or not sigla_era.strip():
                 st.error("Informe o nome e a sigla da era.")
             else:
-                run("INSERT INTO colecao_eras (colecao_id, nome, sigla) VALUES (?,?,?)",
-                    (int(card_selecionado), nome_era.strip(), sigla_era.strip()))
+                run("INSERT INTO colecao_eras (colecao_id, nome, sigla, diamantes) "
+                    "VALUES (?,?,?,?)",
+                    (int(card_selecionado), nome_era.strip(), sigla_era.strip(),
+                     int(diamantes_era)))
                 st.rerun()
 
-        eras = q("SELECT nome, sigla FROM colecao_eras WHERE colecao_id=? ORDER BY id",
+        eras = q("SELECT nome, sigla, diamantes FROM colecao_eras "
+                 "WHERE colecao_id=? ORDER BY id",
                  (int(card_selecionado),))
         if eras.empty:
             st.info("Nenhuma era adicionada ainda.")
         else:
             for era in eras.itertuples():
-                st.markdown(f"**{esc(era.nome)}** · `{esc(era.sigla)}`")
+                diamantes = "💎" * int(era.diamantes)
+                st.markdown(f"**{esc(era.nome)}** · `{esc(era.sigla)}` · {diamantes}")
 
     with col_eventos:
         st.subheader("Eventos")
-        with st.form(f"form_evento_{card_selecionado}", clear_on_submit=True):
-            nome_evento = st.text_input("Nome do evento")
-            sigla_evento = st.text_input("Sigla do evento")
-            enviar_evento = st.form_submit_button("Adicionar evento", type="primary")
-        if enviar_evento:
-            if not nome_evento.strip() or not sigla_evento.strip():
-                st.error("Informe o nome e a sigla do evento.")
-            else:
-                run("INSERT INTO colecao_eventos (colecao_id, nome, sigla) VALUES (?,?,?)",
-                    (int(card_selecionado), nome_evento.strip(), sigla_evento.strip()))
-                st.rerun()
+        chave_nome_evento = f"evento_nome_{card_selecionado}"
+        nome_evento = st.text_input("Nome do evento", key=chave_nome_evento)
+        sigla_gerada = sigla_evento(nome_evento)
+        st.caption(f"Sigla gerada: {sigla_gerada or '—'}")
+        chave_marcadores = f"evento_marcadores_{card_selecionado}"
+        if eh_happy_birthday(nome_evento):
+            st.selectbox("Marcadores do Happy Birthday", [1, 2], key=chave_marcadores)
+        else:
+            st.caption("Este evento usa 1 marcador.")
+        chave_erro = f"evento_erro_{card_selecionado}"
+        if st.session_state.get(chave_erro):
+            st.error(st.session_state[chave_erro])
+        st.button("Adicionar evento", key=f"adicionar_evento_{card_selecionado}",
+                  type="primary", on_click=adicionar_evento,
+                  args=(int(card_selecionado),))
 
-        eventos = q("SELECT nome, sigla FROM colecao_eventos WHERE colecao_id=? ORDER BY id",
+        eventos = q("SELECT nome, sigla, marcadores FROM colecao_eventos "
+                    "WHERE colecao_id=? ORDER BY id",
                     (int(card_selecionado),))
         if eventos.empty:
             st.info("Nenhum evento adicionado ainda.")
         else:
             for evento in eventos.itertuples():
-                st.markdown(f"**{esc(evento.nome)}** · `{esc(evento.sigla)}`")
+                st.markdown(f"**{esc(evento.nome)}** · `{esc(evento.sigla)}` · "
+                            f"Marcadores: {int(evento.marcadores)}")
     st.stop()
 
 # ---------------------------------------------------------------- Cabeçalho
