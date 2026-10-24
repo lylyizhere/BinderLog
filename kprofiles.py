@@ -277,7 +277,7 @@ def buscar_integrantes_kprofiles(grupo):
     return integrantes, perfil_url
 
 
-def _extrair_descricao(html, nomes):
+def _extrair_info_perfil(html, nomes, tipo):
     parser = _PerfilParser()
     parser.feed(html)
     for paragrafo in parser.paragrafos:
@@ -291,12 +291,57 @@ def _extrair_descricao(html, nomes):
             )
             resultado = padrao.search(paragrafo)
             if resultado:
-                return resultado.group(0).strip()
+                introducao = resultado.group(0).strip()
+                estreia = ""
+                marcador_estreia = re.search(
+                    r"\bdebut(?:ed|s)?\b", paragrafo, re.IGNORECASE
+                )
+                if marcador_estreia:
+                    trecho = paragrafo[marcador_estreia.start():]
+                    fim_frase = re.search(r"\.\s+[A-Z]", trecho)
+                    estreia = (
+                        trecho[:fim_frase.start() + 1].strip()
+                        if fim_frase
+                        else trecho.strip()
+                    )
+                album = ""
+                if estreia:
+                    resultado_album = re.search(
+                        r"\b(?:first|debut)\s+"
+                        r"(?:(?:studio|mini|full[- ]length)\s+)?"
+                        r"(?:album|single|ep)\s*(?:,|:|-|titled|called)?\s*"
+                        r"['\"“]?([^,.!?\"”]+)",
+                        estreia,
+                        re.IGNORECASE,
+                    )
+                    if resultado_album:
+                        album = resultado_album.group(1).strip()
+
+                integrantes = []
+                if tipo == "grupo":
+                    try:
+                        integrantes = _extrair_integrantes(html)
+                    except ValueError:
+                        pass
+
+                partes = [introducao]
+                if integrantes:
+                    partes.append("Integrantes: " + ", ".join(integrantes) + ".")
+                if estreia:
+                    partes.append("Estreia: " + estreia)
+                if album:
+                    partes.append("Album de estreia: " + album + ".")
+                return {
+                    "descricao": " ".join(partes),
+                    "estreia": estreia,
+                    "album": album,
+                    "membros": integrantes,
+                }
     raise ValueError("O perfil do KProfiles não apresentou uma descrição curta reconhecível.")
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def buscar_descricao_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
+def buscar_perfil_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
     if tipo == "grupo":
         perfis = [(grupo, grupo)]
     else:
@@ -313,11 +358,15 @@ def buscar_descricao_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
         perfil_url = _url_perfil(consulta, esperado)
         if not perfil_url:
             continue
-        descricao = _extrair_descricao(
-            _buscar_html(perfil_url),
-            (nome_busca, base, grupo if tipo == "grupo" else ""),
-        )
-        return descricao, perfil_url
+        try:
+            info = _extrair_info_perfil(
+                _buscar_html(perfil_url),
+                (nome_busca, base, grupo if tipo == "grupo" else ""),
+                tipo,
+            )
+        except ValueError:
+            continue
+        return {**info, "url": perfil_url}
     raise ValueError(f"Não foi encontrada uma descrição no KProfiles para {base}.")
 
 
