@@ -1285,22 +1285,38 @@ with tab_fotos:
 
 # ---------------------------------------------------------------- Importar CSV
 with tab_imp:
-    st.write("Importa o formato da **Garam**. O arquivo *Bancodedados* é obrigatório "
-             "(traz total e quantidade adquirida); a *Priolist* é opcional e preenche "
-             "prioridade e categoria. Idols já existentes são atualizados.")
+    st.subheader("Importar coleção da Garam")
+    st.caption("O arquivo Bancodedados é obrigatório e contém o total e a quantidade adquirida. "
+               "Priolist é opcional e preenche prioridade e categoria. "
+               "Idols já existentes serão atualizados.")
     bot_imp = st.selectbox("Bot", BOTS, key="bot_imp")
     f_banco = st.file_uploader("Bancodedados (.csv)", type="csv", key="f_banco")
     f_prio = st.file_uploader("Priolist (.csv) — opcional", type="csv", key="f_prio")
     if f_banco:
         try:
             prev, avisos = parse_garam(f_banco, f_prio)
+            st.divider()
+            st.subheader("Prévia da importação")
             st.caption(f"{len(prev)} linhas prontas para importar")
             if avisos:
                 with st.expander(f"⚠️ {len(avisos)} aviso(s) na leitura do CSV"):
                     for a in avisos:
                         st.write("• " + a)
-            st.dataframe(prev, hide_index=True, width="stretch")
-            if st.button("Importar", type="primary"):
+            st.dataframe(
+                prev,
+                hide_index=True,
+                width="stretch",
+                height=520,
+                column_config={
+                    "grupo": st.column_config.TextColumn("Grupo", width="medium"),
+                    "idol": st.column_config.TextColumn("Idol", width="medium"),
+                    "total": st.column_config.NumberColumn("Total", width="small"),
+                    "possuo": st.column_config.NumberColumn("Tenho", width="small"),
+                    "categoria": st.column_config.TextColumn("Categoria", width="small"),
+                    "prioridade": st.column_config.TextColumn("Prioridade", width="small"),
+                },
+            )
+            if st.button("Importar CSV", type="primary", width="stretch"):
                 run_many(UPSERT, [(bot_imp, r.grupo, r.idol, r.categoria, r.prioridade,
                                    int(r.total), int(r.possuo)) for r in prev.itertuples()])
                 st.success(f"{len(prev)} linhas importadas para {bot_imp}!")
