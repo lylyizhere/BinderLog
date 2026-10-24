@@ -42,6 +42,9 @@ Programmable Search e Wikipédia, nessa ordem. O Google precisa de `GOOGLE_API_K
 24 horas para reduzir requisições. Se o kpopping.com recusar o acesso ou o Google atingir a
 cota, novas tentativas naquela fonte são pausadas por 24 horas. Se a foto vier errada ou faltar,
 use **🔄 Trocar por outra foto** ou cole a URL da imagem no campo da aba Fotos.
+Em implantações hospedadas, configure as duas chaves também nos secrets do serviço; o arquivo
+local `.streamlit/secrets.toml` não é enviado ao GitHub. Sem as chaves, o Google é ignorado e a
+busca continua pela Wikipédia.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 

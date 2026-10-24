@@ -500,9 +500,7 @@ def _imagens_google(tipo, base, grupo):
     chave = _secret("GOOGLE_API_KEY")
     mecanismo = _secret("GOOGLE_CSE_ID")
     if not chave or not mecanismo:
-        raise ValueError(
-            "Configure GOOGLE_API_KEY e GOOGLE_CSE_ID em .streamlit/secrets.toml."
-        )
+        return []
 
     termo = grupo if tipo == "grupo" else f"{base} {grupo}".strip()
     resposta = requests.get(
@@ -702,6 +700,10 @@ def buscar_candidatas(tipo, base, grupo, usar_kpopping=True, usar_google=True):
     if erros:
         raise RuntimeError("Não foi possível pesquisar imagens. " + " | ".join(erros))
     return []
+
+
+def google_custom_search_configurado():
+    return bool(_secret("GOOGLE_API_KEY") and _secret("GOOGLE_CSE_ID"))
 
 
 def pausar_kpopping_se_bloqueado(erro):
@@ -1341,6 +1343,11 @@ with tab_fotos:
     else:
         st.caption("Fontes das fotos: KProfiles, kpopping.com, Google e Wikipédia, nessa ordem. "
                    "As buscas ficam em cache por até 24 horas.")
+        if not google_custom_search_configurado():
+            st.info(
+                "Google Custom Search não está configurado neste ambiente. "
+                "As outras fontes continuam disponíveis."
+            )
         if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
             st.info("kpopping.com recusou as buscas recentemente; a fonte está pausada "
                     "por 24 horas. O KProfiles continua disponível.")
