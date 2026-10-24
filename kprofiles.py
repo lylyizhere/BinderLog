@@ -1,12 +1,81 @@
+import math
 import random
 import re
+import threading
 import time
 import unicodedata
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
 import requests
 import streamlit as st
+
+
+class KProfilesRateLimited(requests.RequestException):
+    def __init__(self, status_code, retry_after):
+        self.status_code = status_code
+        self.retry_after = retry_after
+        super().__init__(
+            f"KProfiles respondeu HTTP {status_code}. As buscas dessa fonte foram "
+            f"pausadas por pelo menos {math.ceil(retry_after)} segundos."
+        )
+
+
+class _KProfilesRateLimiter:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._next_request_at = 0
+        self._cooldown_until = 0
+        self._blocked_status = 429
+
+    @staticmethod
+    def _retry_after(headers, default):
+        valor = headers.get("Retry-After")
+        if valor:
+            try:
+                segundos = float(valor)
+                return max(0, segundos) if math.isfinite(segundos) else default
+            except ValueError:
+                try:
+                    data = parsedate_to_datetime(valor)
+                    if data.tzinfo is None:
+                        data = data.replace(tzinfo=timezone.utc)
+                    return max(0, (data - datetime.now(timezone.utc)).total_seconds())
+                except (TypeError, ValueError, OverflowError):
+                    pass
+        return default
+
+    def get(self, url, params, headers, timeout):
+        with self._lock:
+            agora = time.monotonic()
+            if agora < self._cooldown_until:
+                raise KProfilesRateLimited(
+                    self._blocked_status, self._cooldown_until - agora
+                )
+            espera = self._next_request_at - agora
+            if espera > 0:
+                time.sleep(espera)
+            try:
+                resposta = requests.get(
+                    url, params=params, headers=headers, timeout=timeout
+                )
+            finally:
+                self._next_request_at = time.monotonic() + random.uniform(1.5, 2.5)
+            if resposta.status_code in (403, 429):
+                padrao = 21600 if resposta.status_code == 403 else 3600
+                espera = self._retry_after(resposta.headers, padrao)
+                self._blocked_status = resposta.status_code
+                self._cooldown_until = time.monotonic() + espera
+                raise KProfilesRateLimited(resposta.status_code, espera)
+            resposta.raise_for_status()
+            return resposta
+
+
+@st.cache_resource
+def _limitador_kprofiles():
+    return _KProfilesRateLimiter()
 
 
 def _normalizar_nome(nome):
@@ -127,14 +196,14 @@ class _ImagensParser(HTMLParser):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def _buscar_html(url, parametros=()):
-    time.sleep(random.uniform(0.5, 0.7))
-    resposta = requests.get(
+    resposta = _limitador_kprofiles().get(
         url,
         params=dict(parametros) if parametros else None,
-        headers={"User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"},
+        headers={
+            "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
+        },
         timeout=20,
     )
-    resposta.raise_for_status()
     return resposta.text
 
 

@@ -47,7 +47,10 @@ No KProfiles, a busca prioriza a última foto listada no perfil. Para cards de g
 fotos identificadas como sendo de integrantes individuais são deixadas de lado quando a lista
 de integrantes do perfil está disponível. A busca e a extração de dados do KProfiles ficam em
 `kprofiles.py`, separadas da interface e das demais integrações. O scraper se identifica no
-User-Agent e aguarda de 0,5 a 0,7 segundo entre requisições.
+User-Agent e serializa as requisições, aguardando de 1,5 a 2,5 segundos entre elas. Se o site
+responder HTTP 429, o scraper respeita `Retry-After` ou pausa por uma hora; diante de HTTP 403,
+pausa por seis horas (ou pelo prazo informado pelo site) e interrompe a busca em lote. O controle
+de ritmo e a pausa são compartilhados entre sessões no mesmo processo do Streamlit.
 
 As fotos têm direitos autorais dos respectivos donos: o app só guarda o link para uso pessoal.
 

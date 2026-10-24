@@ -13,6 +13,7 @@ import requests
 import streamlit as st
 
 from kprofiles import (
+    KProfilesRateLimited,
     buscar_imagens_kprofiles,
     buscar_integrantes_kprofiles,
 )
@@ -358,6 +359,8 @@ def buscar_candidatas(tipo, base, grupo):
             _termos_busca_imagem(tipo, base, grupo),
             PESSOA_ALIAS_BUSCA,
         ))
+    except KProfilesRateLimited:
+        raise
     except (requests.RequestException, ValueError) as erro:
         erros.append(f"KProfiles: {erro}")
     if time.time() >= st.session_state.get("wikipedia_fotos_cooldown_ate", 0):
@@ -1049,6 +1052,7 @@ with tab_fotos:
         if c2.button(f"🔎 Buscar fotos ({len(alvo)} idols)", disabled=alvo.empty):
             barra_p = st.progress(0.0)
             achou, falhou = 0, []
+            pausa_kprofiles = None
             alvo = alvo.head(int(limite))
             for i, r in enumerate(alvo.itertuples(), 1):
                 try:
@@ -1057,14 +1061,22 @@ with tab_fotos:
                         achou += 1
                     else:
                         falhou.append(f"{r.idol} ({r.grupo})")
+                except KProfilesRateLimited as e:
+                    pausa_kprofiles = str(e)
+                    barra_p.progress(i / len(alvo))
+                    break
                 except Exception as e:
                     falhou.append(f"{r.idol} ({r.grupo}): {e}")
                 barra_p.progress(i / len(alvo))
                 time.sleep(0.2)
             st.success(f"{achou} fotos atualizadas.")
+            if pausa_kprofiles:
+                st.warning(
+                    f"{pausa_kprofiles} O restante da busca em lote foi interrompido."
+                )
             if falhou:
                 st.warning("Sem foto nova: " + "; ".join(falhou) + ". Use o ajuste individual abaixo.")
-            else:
+            if not pausa_kprofiles and not falhou:
                 st.rerun()
 
         st.divider()
@@ -1085,6 +1097,8 @@ with tab_fotos:
                         st.rerun()
                     else:
                         st.warning("Não achei outra foto. Cole uma URL abaixo.")
+                except KProfilesRateLimited as e:
+                    st.warning(str(e))
                 except Exception as e:
                     st.error(str(e))
             nova = st.text_input("Ou cole a URL da foto", key=f"f_url_{sel_id}")
