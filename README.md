@@ -28,12 +28,59 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
    ```
 2. No pgAdmin, crie um banco chamado `binderlog` (Databases > Create > Database).
    A tabela é criada sozinha na primeira execução. O arquivo `schema.sql` mostra a estrutura.
-3. Edite `.streamlit/secrets.toml` e coloque a senha do seu PostgreSQL em `DATABASE_URL`.
-4. Rode:
+3. Configure a entrada com Google no Google Cloud como um cliente OAuth para aplicativo
+   Web. Cadastre como URI de redirecionamento `http://localhost:8501/oauth2callback`
+   (e a URL pública do app terminada em `/oauth2callback` quando publicar). Se a tela
+   de consentimento OAuth estiver em modo de teste, adicione também a conta do seu amigo
+   como usuário de teste.
+4. Edite `.streamlit/secrets.toml`:
+   ```toml
+   DATABASE_URL = "postgresql://USUARIO:SENHA@HOST:5432/binderlog"
+   OWNER_EMAIL = "seu-email-google@exemplo.com"
+
+   [auth]
+   redirect_uri = "http://localhost:8501/oauth2callback"
+   cookie_secret = "gere-um-segredo-aleatorio-longo"
+   client_id = "CLIENT_ID_DO_GOOGLE"
+   client_secret = "CLIENT_SECRET_DO_GOOGLE"
+   server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
+   ```
+   Gere um valor secreto para `cookie_secret` com
+   `python -c "import secrets; print(secrets.token_urlsafe(32))"`. No Streamlit Community
+   Cloud, cadastre os mesmos valores em **App settings > Secrets** e use ali a URL pública
+   do app em `redirect_uri`; essa URL também precisa estar cadastrada no Google Cloud.
+   `OWNER_EMAIL` identifica a conta Google que receberá os dados já existentes no banco.
+   Use em `DATABASE_URL` um usuário PostgreSQL que seja dono das tabelas, mas não tenha
+   `SUPERUSER` nem `BYPASSRLS`; o app interrompe a conexão se o PostgreSQL puder ignorar
+   as regras de isolamento. Se a conta atual do banco for superusuária, crie uma conta
+   de aplicação com um administrador do PostgreSQL e transfira para ela as tabelas e
+   sequências já existentes:
+   ```sql
+   CREATE ROLE binderlog_app LOGIN PASSWORD 'defina-uma-senha-forte'
+       NOSUPERUSER NOBYPASSRLS;
+   GRANT CONNECT ON DATABASE binderlog TO binderlog_app;
+   GRANT USAGE, CREATE ON SCHEMA public TO binderlog_app;
+   ALTER TABLE public.colecao OWNER TO binderlog_app;
+   ALTER TABLE public.colecao_membros OWNER TO binderlog_app;
+   ALTER TABLE public.colecao_eras OWNER TO binderlog_app;
+   ALTER TABLE public.colecao_eventos OWNER TO binderlog_app;
+   ALTER SEQUENCE public.colecao_id_seq OWNER TO binderlog_app;
+   ALTER SEQUENCE public.colecao_membros_id_seq OWNER TO binderlog_app;
+   ALTER SEQUENCE public.colecao_eras_id_seq OWNER TO binderlog_app;
+   ALTER SEQUENCE public.colecao_eventos_id_seq OWNER TO binderlog_app;
+   ```
+   Se o banco ainda não tem tabelas, crie a role e conceda os privilégios do banco e do
+   schema; as tabelas serão criadas pelo app. Atualize `DATABASE_URL` para usar essa role.
+5. Rode:
    ```
    streamlit run index.py
    ```
-5. Na aba **Importar CSV**, envie os arquivos da Garam.
+6. Na aba **Importar CSV**, envie os arquivos da Garam.
+
+Cada pessoa entra com sua própria conta Google e vê uma coleção isolada. Os dados que já
+estavam no banco são associados a `OWNER_EMAIL` quando essa conta entrar pela primeira vez;
+as demais contas começam com uma coleção vazia. Não compartilhe a mesma conta Google para
+manter as coleções separadas.
 
 ## Fotos dos idols
 

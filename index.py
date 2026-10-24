@@ -67,7 +67,38 @@ def conn():
         st.code(str(SECRETS_FILE))
         st.caption(f"Arquivo existe? {SECRETS_FILE.exists()} · Pasta atual do terminal: {Path.cwd()}")
         st.stop()
-    return psycopg2.connect(url)
+    user_sub = st.session_state.get("authenticated_user_sub")
+    user_email = st.session_state.get("authenticated_user_email")
+    owner_email = st.session_state.get("owner_email")
+    if not user_sub or not user_email or not owner_email:
+        st.error("Entre com uma conta Google para conectar sua coleção.")
+        st.stop()
+    connection = psycopg2.connect(url)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT set_config('binderlog.user_sub', %s, false), "
+                "set_config('binderlog.user_email', %s, false), "
+                "set_config('binderlog.owner_email', %s, false)",
+                (user_sub, user_email, owner_email),
+            )
+            cursor.execute(
+                "SELECT rolsuper OR rolbypassrls FROM pg_roles "
+                "WHERE rolname = current_user"
+            )
+            bypasses_policies = cursor.fetchone()[0]
+        if bypasses_policies:
+            connection.close()
+            st.error(
+                "A conexão do banco usa uma conta que ignora as regras de privacidade "
+                "do PostgreSQL. Configure DATABASE_URL com um usuário sem SUPERUSER "
+                "e sem BYPASSRLS."
+            )
+            st.stop()
+        return connection
+    except Exception:
+        connection.close()
+        raise
 
 
 def _sql(sql):
@@ -92,6 +123,39 @@ def run_many(sql, linhas):
         with c, c.cursor() as cur:
             for linha in linhas:
                 cur.execute(_sql(sql), linha)
+
+
+def autenticar_usuario():
+    if not st.user.is_logged_in:
+        st.title("BinderLog")
+        st.write("Entre com sua conta Google para acessar sua coleção privada.")
+        if st.button("Entrar com Google", type="primary"):
+            st.login()
+        st.stop()
+
+    email = str(st.user.get("email", "")).strip().casefold()
+    user_sub = str(st.user.get("sub", "")).strip()
+    if not email or not user_sub or st.user.get("email_verified") is not True:
+        st.error("Não foi possível verificar sua identidade Google. Tente entrar novamente.")
+        if st.button("Sair"):
+            st.logout()
+        st.stop()
+
+    owner_email = str(_secret("OWNER_EMAIL") or "").strip().casefold()
+    if not owner_email:
+        st.error(
+            "OWNER_EMAIL não está configurado. Defina o e-mail Google da conta "
+            "proprietária da coleção nos segredos do Streamlit."
+        )
+        st.stop()
+
+    st.session_state["authenticated_user_sub"] = user_sub
+    st.session_state["authenticated_user_email"] = email
+    st.session_state["owner_email"] = owner_email
+    with st.sidebar:
+        st.caption(f"Conta Google: {email}")
+        if st.button("Sair da conta", width="stretch"):
+            st.logout()
 
 
 def sigla_evento(nome):
@@ -133,6 +197,7 @@ def _normalizar_nome_grupo(nome):
 def init_db():
     run("""CREATE TABLE IF NOT EXISTS colecao (
         id SERIAL PRIMARY KEY,
+        owner_id TEXT,
         bot TEXT NOT NULL,
         grupo TEXT NOT NULL DEFAULT '',
         idol TEXT NOT NULL,
@@ -143,13 +208,25 @@ def init_db():
         image_url TEXT,
         descricao_pt TEXT,
         descricao_url TEXT,
-        descricao_versao INTEGER NOT NULL DEFAULT 0,
-        UNIQUE (bot, grupo, idol))""")
+        descricao_versao INTEGER NOT NULL DEFAULT 0)""")
+    run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS owner_id TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS image_url TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_pt TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_url TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_versao "
         "INTEGER NOT NULL DEFAULT 0")
+    run(
+        "ALTER TABLE colecao ALTER COLUMN owner_id "
+        "SET DEFAULT current_setting('binderlog.user_sub')"
+    )
+    run(
+        "ALTER TABLE colecao DROP CONSTRAINT IF EXISTS "
+        "colecao_bot_grupo_idol_key"
+    )
+    run(
+        "CREATE UNIQUE INDEX IF NOT EXISTS colecao_owner_bot_grupo_idol_idx "
+        "ON colecao (owner_id, bot, grupo, idol)"
+    )
     run("""CREATE TABLE IF NOT EXISTS colecao_membros (
         id SERIAL PRIMARY KEY,
         colecao_id INTEGER NOT NULL REFERENCES colecao(id) ON DELETE CASCADE,
@@ -185,6 +262,32 @@ def init_db():
         "INTEGER REFERENCES colecao_membros(id) ON DELETE CASCADE")
     run("ALTER TABLE colecao_eventos ADD COLUMN IF NOT EXISTS sigla TEXT NOT NULL DEFAULT ''")
     run("ALTER TABLE colecao_eventos ADD COLUMN IF NOT EXISTS marcadores INTEGER NOT NULL DEFAULT 1")
+
+    politica_colecao = (
+        "owner_id = current_setting('binderlog.user_sub', true) OR "
+        "(owner_id IS NULL AND "
+        "current_setting('binderlog.user_email', true) = "
+        "current_setting('binderlog.owner_email', true))"
+    )
+    for tabela in (
+        "colecao",
+        "colecao_membros",
+        "colecao_eras",
+        "colecao_eventos",
+    ):
+        run(f"ALTER TABLE {tabela} ENABLE ROW LEVEL SECURITY")
+        run(f"ALTER TABLE {tabela} FORCE ROW LEVEL SECURITY")
+        run(f"DROP POLICY IF EXISTS binderlog_user_isolation ON {tabela}")
+        condicao = (
+            politica_colecao
+            if tabela == "colecao"
+            else "EXISTS (SELECT 1 FROM colecao c WHERE c.id = colecao_id)"
+        )
+        run(
+            f"CREATE POLICY binderlog_user_isolation ON {tabela} "
+            f"USING ({condicao}) WITH CHECK ({condicao})"
+        )
+
     eventos = q("SELECT id, nome, sigla FROM colecao_eventos")
     siglas_atualizadas = [
         (sigla_evento(evento.nome), int(evento.id))
@@ -201,7 +304,18 @@ def init_db():
     return True
 
 
+def reivindicar_colecao_existente():
+    email = st.session_state["authenticated_user_email"]
+    if email == st.session_state["owner_email"]:
+        run(
+            "UPDATE colecao SET owner_id=? WHERE owner_id IS NULL",
+            (st.session_state["authenticated_user_sub"],),
+        )
+
+
+autenticar_usuario()
 init_db()
+reivindicar_colecao_existente()
 
 
 # ---------------------------------------------------------------- Busca de imagens
@@ -486,7 +600,7 @@ def trocar_foto(id_, idol, grupo, atual=None):
 
 UPSERT = """INSERT INTO colecao (bot, grupo, idol, categoria, prioridade, total, possuo)
     VALUES (?,?,?,?,?,?,?)
-    ON CONFLICT (bot, grupo, idol) DO UPDATE SET
+    ON CONFLICT (owner_id, bot, grupo, idol) DO UPDATE SET
         categoria=excluded.categoria, prioridade=excluded.prioridade,
         total=excluded.total, possuo=excluded.possuo"""
 
