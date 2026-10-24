@@ -127,11 +127,11 @@ class _ImagensParser(HTMLParser):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def _buscar_html(url, parametros=()):
-    time.sleep(random.uniform(0.0005, 0.0007))
+    time.sleep(random.uniform(0.5, 0.7))
     resposta = requests.get(
         url,
         params=dict(parametros) if parametros else None,
-        headers={"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"},
+        headers={"User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"},
         timeout=20,
     )
     resposta.raise_for_status()
