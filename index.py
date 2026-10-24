@@ -592,6 +592,37 @@ def ordenar(df, ordem):
 
 
 # ---------------------------------------------------------------- Visual
+THEME_MODES = ("system", "light", "dark")
+THEME_LABELS = {"system": "🖥️ Auto", "light": "☀️ Claro", "dark": "🌙 Escuro"}
+THEME_MEDIA_QUERIES = {
+    "system": "(prefers-color-scheme: light)",
+    "light": "all",
+    "dark": "(prefers-color-scheme: no-preference)",
+}
+theme_mode = st.session_state.setdefault("theme_mode", "system")
+theme_media_query = THEME_MEDIA_QUERIES.get(
+    theme_mode, THEME_MEDIA_QUERIES["system"]
+)
+
+
+def botao_tema(container):
+    tema_atual = st.session_state.get("theme_mode", "system")
+    if tema_atual not in THEME_MODES:
+        tema_atual = "system"
+    with container.popover(
+        THEME_LABELS[tema_atual],
+        help="Escolha a aparência do BinderLog.",
+        width="stretch",
+    ):
+        st.radio(
+            "Tema",
+            options=THEME_MODES,
+            format_func=THEME_LABELS.__getitem__,
+            key="theme_mode",
+            label_visibility="collapsed",
+        )
+
+
 CSS = """
 <style>
 :root {
@@ -610,6 +641,7 @@ CSS = """
     --text: #eaf6fa;
     --heading: #eaf6fa;
     --muted: #afc5d2;
+    --tabs-text: #afc5d2;
     --subtle: #7f9aaa;
     --page-glow-one: rgba(66, 217, 245, .12);
     --page-glow-two: rgba(16, 42, 67, .42);
@@ -650,7 +682,7 @@ CSS = """
     color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
+@media THEME_LIGHT_QUERY {
     :root {
         --bg: #f3f8fb;
         --bg-soft: #eaf3f7;
@@ -665,9 +697,11 @@ CSS = """
         --text: #263f53;
         --heading: #102A43;
         --muted: #526b7c;
+        --tabs-text: #526b7c;
         --subtle: #758b99;
-        --page-glow-one: rgba(66, 217, 245, .16);
-        --page-glow-two: rgba(16, 42, 67, .08);
+        --page-glow-one: rgba(66, 217, 245, .3);
+        --page-glow-two: rgba(8, 127, 156, .12);
+        --page-glow-three: rgba(216, 181, 109, .08);
         --header-bg: rgba(243, 248, 251, .88);
         --pill-bg: rgba(255, 255, 255, .84);
         --hero-bg: linear-gradient(125deg,rgba(225,239,247,.98),rgba(220,245,247,.96));
@@ -677,8 +711,8 @@ CSS = """
         --ring-track: rgba(16, 42, 67, .12);
         --ring-center: #fff;
         --ring-sm-center: #eaf3f7;
-        --tabs-bg: rgba(16, 42, 67, .96);
-        --tab-hover-bg: rgba(66, 217, 245, .12);
+        --tabs-bg: rgba(234, 243, 247, .92);
+        --tab-hover-bg: rgba(8, 127, 156, .1);
         --tab-active-bg: linear-gradient(135deg,#42D9F5,#24b8d3);
         --tab-active-color: #102A43;
         --tab-active-shadow: 0 5px 16px rgba(16, 42, 67, .16);
@@ -710,14 +744,28 @@ CSS = """
     background:
         radial-gradient(ellipse at 12% 0%, var(--page-glow-one), transparent 34rem),
         radial-gradient(ellipse at 94% 15%, var(--page-glow-two), transparent 32rem),
+        radial-gradient(ellipse at 52% -12%, var(--page-glow-three, transparent), transparent 38rem),
         var(--bg);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+[data-testid="stHorizontalBlock"]:has(.ttl) button {
+    min-height:48px; position:relative; top:8px;
+}
+body {background:var(--bg); color:var(--text)}
 #MainMenu, footer {visibility: hidden}
+[data-testid="stDialog"] [role="dialog"] {
+    border:1px solid var(--line-strong) !important;
+    border-radius:16px !important;
+    background:var(--panel-solid) !important;
+    color:var(--text) !important;
+    box-shadow:0 18px 50px rgba(16,42,67,.24) !important;
+}
+[data-testid="stDialog"] [aria-label="Close"] {color:var(--text) !important}
 header[data-testid="stHeader"] {background: var(--header-bg)}
 .block-container {max-width: 1440px; padding: 2.1rem 3rem 4rem}
 
 h1, h2, h3, h4 {color: var(--heading); letter-spacing: -.035em}
+h1 p, h2 p, h3 p, h4 p {color:inherit !important}
 h1 {font-weight: 760}
 h2, h3 {font-weight: 690}
 p, label, [data-testid="stCaptionContainer"] {color: var(--muted)}
@@ -775,18 +823,22 @@ a {color: var(--accent)}
 .hd h3 {margin:0; font-size:23px}
 .hd span {color:var(--muted); font-size:12px}
 
-[data-testid="stTabs"] [data-baseweb="tab-list"] {
-    gap:7px; padding:6px; border:1px solid var(--line);
-    border-radius:16px; background:var(--tabs-bg);
+[data-testid="stTabs"] [role="tablist"] {
+    width:fit-content; max-width:100%; gap:7px; padding:6px;
+    border:1px solid var(--line); border-radius:16px; background:var(--tabs-bg);
 }
-[data-testid="stTabs"] [data-baseweb="tab"] {
-    height:42px; padding:0 17px; border-radius:11px;
-    color:var(--muted); font-weight:650; background:transparent;
+[data-testid="stTabs"] [role="tab"] {
+    height:42px; padding:0 17px; border-radius:11px; box-sizing:border-box;
+    color:var(--tabs-text); font-weight:650; background:transparent;
 }
-[data-testid="stTabs"] [data-baseweb="tab"]:hover {color:var(--text); background:var(--tab-hover-bg)}
+[data-testid="stTabs"] [role="tab"]:hover {color:var(--text); background:var(--tab-hover-bg)}
+[data-testid="stTabs"] .react-aria-SelectionIndicator {display:none !important}
 [data-testid="stTabs"] [aria-selected="true"] {
     color:var(--tab-active-color) !important; background:var(--tab-active-bg) !important;
     box-shadow:var(--tab-active-shadow);
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] p {
+    color:var(--tab-active-color) !important;
 }
 [data-testid="stTabs"] [data-baseweb="tab-highlight"],
 [data-testid="stTabs"] [data-baseweb="tab-border"] {display:none}
@@ -812,7 +864,83 @@ button[kind="secondary"] {
 }
 button[kind="secondary"]:hover {border-color:var(--line-strong) !important; background:var(--panel-raised) !important}
 button:disabled {opacity:.42 !important}
+button p {color:inherit !important}
 
+[data-testid="stSelectbox"] [role="group"] {
+    border:1px solid var(--line-strong) !important;
+    border-radius:11px !important;
+    background:var(--input-bg) !important;
+    color:var(--text) !important;
+}
+[data-testid="stSelectbox"] [role="group"]:focus-within {
+    border-color:var(--accent-strong) !important;
+    box-shadow:0 0 0 1px var(--accent-strong) !important;
+}
+[data-testid="stSelectbox"] input,
+[data-testid="stSelectbox"] button {
+    color:var(--text) !important;
+}
+[data-testid="stSelectbox"] button:hover {background:var(--accent-soft) !important}
+[data-testid="stSelectboxVirtualDropdown"] {
+    border:1px solid var(--line-strong) !important;
+    border-radius:11px !important;
+    background:var(--panel-solid) !important;
+    box-shadow:0 12px 30px rgba(16,42,67,.18) !important;
+}
+[data-testid="stSelectboxVirtualDropdown"] [role="listbox"] {
+    background:var(--panel-solid) !important;
+    color:var(--text) !important;
+}
+[data-testid="stSelectboxVirtualDropdown"] [role="option"] {
+    color:var(--text) !important;
+}
+[data-testid="stSelectboxVirtualDropdown"] [role="option"]:hover,
+[data-testid="stSelectboxVirtualDropdown"] [role="option"][data-selected="true"] {
+    background:var(--accent-soft) !important;
+}
+
+[data-testid="stPopoverBody"] {
+    border:1px solid var(--line-strong) !important;
+    border-radius:14px !important;
+    background:var(--panel-solid) !important;
+    color:var(--text) !important;
+    box-shadow:0 14px 36px rgba(16,42,67,.2) !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"] {
+    border-radius:9px;
+    color:var(--text) !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"] p {
+    color:var(--text) !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"]:hover,
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"]:has(input:checked) {
+    background:var(--accent-soft) !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"] > div > div:first-child {
+    background:var(--panel-solid) !important;
+    border-color:var(--line-strong) !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"][data-selected="true"]
+> div > div:first-child {
+    background:var(--accent) !important;
+    border-color:var(--accent) !important;
+}
+[data-testid="stPopoverBody"] [data-testid="stRadioOption"] > div > div:first-child > div {
+    background:var(--panel-solid) !important;
+}
+
+[data-testid="stTextInputRootElement"],
+[data-testid="stNumberInputContainer"] {
+    border:1px solid var(--line-strong) !important;
+    border-radius:11px !important;
+    background:var(--input-bg) !important;
+}
+[data-testid="stTextInputRootElement"]:focus-within,
+[data-testid="stNumberInputContainer"]:focus-within {
+    border-color:var(--accent-strong) !important;
+    box-shadow:0 0 0 1px var(--accent-strong) !important;
+}
 .stTextInput input, .stNumberInput input, .stTextArea textarea,
 [data-baseweb="select"] > div, [data-baseweb="input"] > div {
     border-color:var(--line-strong) !important; border-radius:11px !important;
@@ -821,6 +949,11 @@ button:disabled {opacity:.42 !important}
 .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
     border-color:var(--accent-strong) !important;
     box-shadow:0 0 0 1px var(--accent-strong) !important;
+}
+[data-testid="stNumberInputStepUp"],
+[data-testid="stNumberInputStepDown"] {
+    color:var(--text) !important;
+    background:var(--panel-raised) !important;
 }
 [data-baseweb="select"] span, [data-baseweb="input"] input {color:var(--text) !important}
 [data-baseweb="tag"] {background:var(--accent-soft) !important; color:var(--text) !important}
@@ -913,11 +1046,14 @@ button:disabled {opacity:.42 !important}
     .ttl b {font-size:19px}
     .hero {padding:20px; border-radius:20px}
     .ring:not(.sm) {--s:72px}
-    [data-testid="stTabs"] [data-baseweb="tab"] {padding:0 10px; font-size:12px}
+    [data-testid="stTabs"] [role="tab"] {padding:0 10px; font-size:12px}
 }
 </style>
 """
-st.markdown(CSS, unsafe_allow_html=True)
+st.markdown(
+    CSS.replace("THEME_LIGHT_QUERY", theme_media_query, 1),
+    unsafe_allow_html=True,
+)
 
 
 def pct(parte, total):
@@ -1115,16 +1251,18 @@ if card_selecionado:
         st.query_params.pop("card", None)
         st.stop()
 
+    c_voltar, c_tema = st.columns([6, 2], vertical_alignment="center")
+    botao_tema(c_tema)
     selecionado = df_all[df_all["id"] == card_selecionado]
     if selecionado.empty:
         st.warning("Este card não está mais na coleção.")
-        if st.button("← Voltar ao painel"):
+        if c_voltar.button("← Voltar ao painel"):
             st.query_params.pop("card", None)
             st.rerun()
         st.stop()
 
     card = selecionado.iloc[0]
-    if st.button("← Voltar ao painel"):
+    if c_voltar.button("← Voltar ao painel"):
         st.query_params.pop("card", None)
         st.rerun()
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
@@ -1306,11 +1444,14 @@ if card_selecionado:
 
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
-c_tit, c_pill, c_btn = st.columns([5, 2.4, 2.4], vertical_alignment="center")
+c_tit, c_pill, c_tema, c_btn = st.columns(
+    [4.2, 2.4, 1.8, 2.4], vertical_alignment="center"
+)
 c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
                '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
 c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
                 unsafe_allow_html=True)
+botao_tema(c_tema)
 if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
     dialog_adicionar()
 
