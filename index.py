@@ -3,6 +3,7 @@ import re
 import time
 import tomllib
 from html import escape as esc
+from html.parser import HTMLParser
 from contextlib import closing
 from pathlib import Path
 
@@ -109,6 +110,129 @@ def icone_evento(nome):
     )
     return next((icone for termos, icone in icones
                  if any(termo_evento in termo for termo_evento in termos)), "📅")
+
+
+def _normalizar_nome_grupo(nome):
+    return re.sub(r"[^a-z0-9]", "", str(nome).casefold())
+
+
+class _KProfilesBuscaParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.resultados = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "a":
+            return
+        atributos = dict(attrs)
+        href = atributos.get("href", "")
+        titulo = atributos.get("title", "")
+        if href.startswith("https://kprofiles.com/") and titulo:
+            self.resultados.append((titulo, href))
+
+
+class _KProfilesPerfilParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.conteudo_depth = 0
+        self.in_paragrafo = False
+        self.paragrafo_atual = []
+        self.paragrafos = []
+
+    def handle_starttag(self, tag, attrs):
+        atributos = dict(attrs)
+        if tag == "div":
+            classes = atributos.get("class", "").split()
+            if self.conteudo_depth:
+                self.conteudo_depth += 1
+            elif "entry-content" in classes:
+                self.conteudo_depth = 1
+        elif tag == "p" and self.conteudo_depth:
+            self.in_paragrafo = True
+            self.paragrafo_atual = []
+
+    def handle_endtag(self, tag):
+        if tag == "p" and self.in_paragrafo:
+            texto = " ".join("".join(self.paragrafo_atual).split())
+            self.paragrafos.append(texto)
+            self.in_paragrafo = False
+        elif tag == "div" and self.conteudo_depth:
+            self.conteudo_depth -= 1
+
+    def handle_data(self, data):
+        if self.in_paragrafo:
+            self.paragrafo_atual.append(data)
+
+
+def _extrair_integrantes_kprofiles(html):
+    parser = _KProfilesPerfilParser()
+    parser.feed(html)
+    padrao = re.compile(
+        r"(?:the group consists of|the group is made up of|members are|members include|"
+        r"consisting of)"
+        r"\s+(.+?)(?:\s+from\b|\s+under\b|[.!?]|$)",
+        re.IGNORECASE,
+    )
+    for paragrafo in parser.paragrafos:
+        resultado = padrao.search(paragrafo)
+        if not resultado:
+            continue
+        lista = re.sub(r"^\d+\s+members?\s*:\s*", "", resultado.group(1),
+                       flags=re.IGNORECASE)
+        integrantes = [
+            nome.strip(" .:;")
+            for nome in re.split(
+                r",\s*(?:and\s+)?|\s+\band\b\s+|\s+&\s+",
+                lista,
+                flags=re.IGNORECASE,
+            )
+        ]
+        integrantes = list(dict.fromkeys(nome for nome in integrantes if nome))
+        if integrantes and len(integrantes) <= 30:
+            return integrantes
+    raise ValueError("O perfil encontrado não apresentou uma lista de integrantes reconhecível.")
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def buscar_integrantes_kprofiles(grupo):
+    headers = {"User-Agent": "BinderLog/1.0 (K-pop collection tracker)"}
+    resposta = requests.get(
+        "https://kprofiles.com/",
+        params={"s": grupo},
+        headers=headers,
+        timeout=20,
+    )
+    resposta.raise_for_status()
+    busca = _KProfilesBuscaParser()
+    busca.feed(resposta.text)
+
+    grupo_normalizado = _normalizar_nome_grupo(grupo)
+    perfil_url = None
+    sufixos = (
+        "membersprofileandfactsupdated",
+        "membersprofileandfacts",
+        "membersprofileupdated",
+        "membersprofile",
+        "memberprofileandfacts",
+        "memberprofile",
+    )
+    for titulo, url in busca.resultados:
+        titulo_normalizado = _normalizar_nome_grupo(titulo)
+        for sufixo in sufixos:
+            if (titulo_normalizado.endswith(sufixo)
+                    and titulo_normalizado[:-len(sufixo)] == grupo_normalizado):
+                perfil_url = url
+                break
+        if perfil_url:
+            break
+
+    if not perfil_url:
+        raise ValueError(f"Não foi encontrado um perfil de integrantes para {grupo}.")
+
+    perfil = requests.get(perfil_url, headers=headers, timeout=20)
+    perfil.raise_for_status()
+    integrantes = _extrair_integrantes_kprofiles(perfil.text)
+    return integrantes, perfil_url
 
 
 @st.cache_resource
@@ -661,30 +785,68 @@ if card_selecionado:
 
     grupo_completo = card["idol"] == GRUPO_COMPLETO
     if grupo_completo:
-        st.subheader("Membros do grupo")
-        with st.form(f"form_membro_{card_selecionado}", clear_on_submit=True):
-            nome_membro = st.text_input("Nome do membro")
-            adicionar_membro = st.form_submit_button("Adicionar membro")
-        if adicionar_membro:
-            nome_membro = nome_membro.strip()
-            if not nome_membro:
-                st.error("Informe o nome do membro.")
-            elif not q("SELECT id FROM colecao_membros "
-                       "WHERE colecao_id=? AND LOWER(nome)=LOWER(?)",
-                       (int(card_selecionado), nome_membro)).empty:
-                st.error(f"{nome_membro} já está cadastrado neste card.")
-            else:
-                run("INSERT INTO colecao_membros (colecao_id, nome) VALUES (?,?)",
-                    (int(card_selecionado), nome_membro))
-                st.rerun()
-
         membros = q("SELECT id, nome FROM colecao_membros "
                     "WHERE colecao_id=? ORDER BY nome",
                     (int(card_selecionado),))
+        roster_url = None
+        roster = None
+        st.subheader("Membros do grupo")
+        try:
+            with st.spinner(f"Conferindo os integrantes de {card['grupo']} no KProfiles..."):
+                roster, roster_url = buscar_integrantes_kprofiles(card["grupo"])
+            existentes = {
+                str(membro.nome).strip().casefold()
+                for membro in membros.itertuples()
+            }
+            novos = [
+                nome for nome in roster
+                if nome.strip().casefold() not in existentes
+            ]
+            if novos:
+                run_many(
+                    "INSERT INTO colecao_membros (colecao_id, nome) VALUES (?,?)",
+                    [(int(card_selecionado), nome) for nome in novos],
+                )
+                membros = q("SELECT id, nome FROM colecao_membros "
+                            "WHERE colecao_id=? ORDER BY nome",
+                            (int(card_selecionado),))
+        except (requests.RequestException, ValueError) as erro:
+            st.warning(f"Não foi possível verificar os integrantes no KProfiles: {erro}")
+            if st.button("Tentar buscar novamente", key=f"buscar_membros_{card_selecionado}"):
+                st.rerun()
+
+        if roster_url:
+            st.markdown(f"Fonte conferida: [KProfiles]({roster_url})")
+
         if membros.empty:
-            st.info("Cadastre os membros para criar os blocos individuais.")
+            st.info("Os blocos dos integrantes aparecerão quando a lista for encontrada.")
         else:
-            for membro in membros.itertuples():
+            membros_por_nome = {
+                str(membro.nome).strip().casefold(): membro
+                for membro in membros.itertuples()
+            }
+            ordem_membros = []
+            if roster:
+                ordem_membros.extend(
+                    membros_por_nome[nome.strip().casefold()]
+                    for nome in roster
+                    if nome.strip().casefold() in membros_por_nome
+                )
+                nomes_fonte = {nome.strip().casefold() for nome in roster}
+                adicionais = [
+                    membro for chave, membro in membros_por_nome.items()
+                    if chave not in nomes_fonte
+                ]
+                if adicionais:
+                    st.warning(
+                        "Há integrantes salvos que não aparecem na lista atual do KProfiles. "
+                        "Eles e seus dados foram mantidos."
+                    )
+                    ordem_membros.extend(adicionais)
+            else:
+                ordem_membros = list(membros.itertuples())
+
+            for membro in ordem_membros:
                 renderizar_eras_eventos(
                     int(card_selecionado), int(membro.id), membro.nome
                 )
