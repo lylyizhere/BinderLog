@@ -208,7 +208,7 @@ def _buscar_html(url, parametros=()):
     return resposta.text
 
 
-def _url_perfil(query, esperado):
+def _url_perfil(query, esperado, grupo_esperado=""):
     html = _buscar_html("https://kprofiles.com/", (("s", query),))
     busca = _BuscaParser()
     busca.feed(html)
@@ -218,16 +218,26 @@ def _url_perfil(query, esperado):
         "membersprofileupdated", "membersprofile", "memberprofileandfacts",
         "memberprofile", "profileandfacts", "profile",
     )
+    grupo_normalizado = _normalizar_nome(grupo_esperado)
     candidatos = []
     for titulo, url in busca.resultados:
         titulo_normalizado = _normalizar_nome(titulo)
+        url_normalizada = _normalizar_nome(url)
         for sufixo in sufixos:
             if not titulo_normalizado.endswith(sufixo):
                 continue
             nome_perfil = titulo_normalizado[:-len(sufixo)]
             if alvo and alvo in nome_perfil:
+                grupo_corresponde = bool(
+                    grupo_normalizado
+                    and (
+                        grupo_normalizado in titulo_normalizado
+                        or grupo_normalizado in url_normalizada
+                    )
+                )
                 candidatos.append(
                     (
+                        not grupo_corresponde,
                         len(nome_perfil) - len(alvo),
                         nome_perfil.find(alvo),
                         nome_perfil != alvo,
@@ -235,7 +245,7 @@ def _url_perfil(query, esperado):
                     )
                 )
                 break
-    return min(candidatos)[3] if candidatos else None
+    return min(candidatos)[4] if candidatos else None
 
 
 def _extrair_integrantes(html):
@@ -385,7 +395,8 @@ def buscar_perfil_kprofiles(tipo, base, grupo, nome_busca, termos_busca):
         if chave in consultadas:
             continue
         consultadas.add(chave)
-        perfil_url = _url_perfil(consulta, esperado)
+        contexto_grupo = grupo if tipo != "grupo" and grupo.casefold() != "solo" else ""
+        perfil_url = _url_perfil(consulta, esperado, contexto_grupo)
         if not perfil_url:
             continue
         try:
@@ -460,7 +471,8 @@ def buscar_imagens_kprofiles(tipo, base, grupo, nome_busca, termos_busca,
         if chave_consulta in consultas_feitas:
             continue
         consultas_feitas.add(chave_consulta)
-        perfil_url = _url_perfil(consulta, esperado)
+        contexto_grupo = grupo if tipo != "grupo" and grupo.casefold() != "solo" else ""
+        perfil_url = _url_perfil(consulta, esperado, contexto_grupo)
         if not perfil_url:
             continue
         html = _buscar_html(perfil_url)

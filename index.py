@@ -25,7 +25,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
-VERSAO_DESCRICAO = 3
+VERSAO_DESCRICAO = 4
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
