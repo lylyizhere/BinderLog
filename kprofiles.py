@@ -70,6 +70,7 @@ class _KProfilesRateLimiter:
             espera = self._next_request_at - agora
             if espera > 0:
                 time.sleep(espera)
+            time.sleep(random.uniform(0.0005, 0.0007))
             try:
                 resposta = requests.get(
                     url, params=params, headers=headers, timeout=timeout
