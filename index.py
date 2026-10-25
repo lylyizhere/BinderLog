@@ -1299,25 +1299,24 @@ button p {color:inherit !important}
         min-width:calc(50% - .35rem) !important
     }
     [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
-        flex-wrap:nowrap !important; gap:.25rem !important
+        display:grid !important;
+        grid-template-columns:26px minmax(48px, 1fr) 26px 32px !important;
+        align-items:center !important; gap:.15rem !important
     }
     [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-        flex:1 1 0% !important; width:auto !important; min-width:0 !important
-    }
-    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1),
-    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
-        flex:0 0 30px !important; width:30px !important; min-width:30px !important
-    }
-    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
-        flex:1 1 auto !important; width:auto !important; min-width:38px !important
-    }
-    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {
-        flex:0 0 34px !important; width:34px !important; min-width:34px !important
+        display:flex !important; justify-content:center !important; align-items:center !important;
+        flex:none !important; width:auto !important; min-width:0 !important;
+        padding:0 !important; margin:0 !important
     }
     [class*="st-key-card_"] button {
-        width:30px !important; height:30px !important; min-height:30px !important
+        width:26px !important; height:26px !important; min-height:26px !important;
+        padding:0 !important
     }
-    [class*="st-key-card_"] .ring.sm {--s:32px}
+    [class*="st-key-card_"] .cnt {
+        display:flex; justify-content:center; align-items:center;
+        min-width:0; min-height:30px; white-space:nowrap; font-size:13px
+    }
+    [class*="st-key-card_"] .ring.sm {--s:30px; margin:0 auto}
     .hero {grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:18px; margin-bottom:22px}
     .pill {display:none}
     .ph {height:clamp(145px,42vw,185px)}
