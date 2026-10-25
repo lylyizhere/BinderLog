@@ -14,7 +14,7 @@ import requests
 import streamlit as st
 
 
-VERSAO_CACHE_PERFIL = 2
+VERSAO_CACHE_PERFIL = 3
 
 
 def _retry_after(headers, default):
@@ -70,7 +70,6 @@ class _KProfilesRateLimiter:
             espera = self._next_request_at - agora
             if espera > 0:
                 time.sleep(espera)
-            time.sleep(random.uniform(0.0005, 0.0007))
             try:
                 resposta = requests.get(
                     url, params=params, headers=headers, timeout=timeout
@@ -404,7 +403,8 @@ def _extrair_info_perfil(html, nomes, tipo):
     if tipo == "grupo":
         padrao_fato = re.compile(
             r"\b(?:meaning|fandom(?: name)?|fan name|formed\s+(?:in|on)|agency|"
-            r"debut(?:ed|s)?|first\s+(?:album|single|ep)|musical style|genre)\b",
+            r"debut(?:ed|s)?|first\s+(?:album|single|ep)|musical style|genre|"
+            r"known for|concept)\b",
             re.IGNORECASE,
         )
     else:
@@ -419,13 +419,13 @@ def _extrair_info_perfil(html, nomes, tipo):
     for sentenca in sentencas:
         if (
             sentenca != introducao
-            and sentenca != estreia
+            and (tipo != "grupo" or sentenca != estreia)
             and padrao_fato.search(sentenca)
             and sentenca not in fatos
         ):
             fatos.append(sentenca)
     if tipo == "grupo":
-        fatos = fatos[:5]
+        fatos = fatos[:8]
     else:
         prioridades_fato = (
             (r"\bbirth(?:day)?\b|\bborn\b|\bbirth name\b", 0),
@@ -450,23 +450,16 @@ def _extrair_info_perfil(html, nomes, tipo):
         fatos = [sentenca for _, sentenca in fatos[:6]]
 
     partes = [introducao]
-    if integrantes:
-        partes.append("Membros: " + ", ".join(integrantes) + ".")
-    if estreia:
-        partes.append("Estreia: " + estreia)
-    if album:
-        partes.append(f"Album de estreia: *{album}*.")
-    if fatos:
-        if tipo == "grupo":
-            partes.append("Outras informacoes: " + " ".join(fatos))
-        else:
-            bio = " ".join(fatos)
-            if bio and not re.search(r"[.!?]$", bio):
-                bio += "."
-            if bio:
-                partes.append(bio)
+    if tipo == "grupo" and estreia and estreia not in introducao:
+        partes.append(estreia)
+    texto_atual = " ".join(partes).casefold()
+    if tipo == "grupo" and album and album.casefold() not in texto_atual:
+        partes.append(f"The debut album was *{album}*.")
+    partes.extend(fatos)
+    descricao = " ".join(parte.strip() for parte in partes if parte.strip())
+    descricao = re.sub(r"\s+", " ", descricao).strip()
     return {
-        "descricao": "\n\n".join(partes),
+        "descricao": descricao,
         "introducao": introducao,
         "estreia": estreia,
         "album": album,
