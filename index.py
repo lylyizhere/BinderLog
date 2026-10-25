@@ -784,7 +784,7 @@ THEME_MODES = ("system", "light", "dark")
 THEME_LABELS = {"system": "🖥️ Auto", "light": "☀️ Claro", "dark": "🌙 Escuro"}
 THEME_MEDIA_QUERIES = {
     "system": "(prefers-color-scheme: light)",
-    "light": "all",
+    "light": "(min-width: 0px)",
     "dark": "(prefers-color-scheme: no-preference)",
 }
 theme_mode = st.session_state.setdefault("theme_mode", "system")
@@ -928,18 +928,18 @@ CSS = """
 }
 
 .stApp {
-    color: var(--text);
+    color: var(--text) !important;
     background:
         radial-gradient(ellipse at 12% 0%, var(--page-glow-one), transparent 34rem),
         radial-gradient(ellipse at 94% 15%, var(--page-glow-two), transparent 32rem),
         radial-gradient(ellipse at 52% -12%, var(--page-glow-three, transparent), transparent 38rem),
-        var(--bg);
+        var(--bg) !important;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 [data-testid="stHorizontalBlock"]:has(.ttl) button {
     min-height:48px; position:relative; top:8px;
 }
-body {background:var(--bg); color:var(--text)}
+body {background:var(--bg) !important; color:var(--text) !important}
 #MainMenu, footer {visibility: hidden}
 [data-testid="stDialog"] [role="dialog"] {
     border:1px solid var(--line-strong) !important;
@@ -1212,7 +1212,8 @@ button p {color:inherit !important}
     border:1px solid var(--line); color:var(--text); font-weight:620;
 }
 .st-key-botes button[data-testid="stBaseButton-primary"] {
-    border-color:var(--line-strong); background:linear-gradient(115deg,#102A43,#174763);
+    border-color:var(--line-strong); background:var(--button-primary-bg) !important;
+    color:var(--button-primary-text) !important;
 }
 [class*="st-key-card_"] {
     background:var(--card-bg);
