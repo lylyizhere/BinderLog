@@ -1263,31 +1263,31 @@ button p {color:inherit !important}
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex:1 1 100% !important; width:100% !important; min-width:100% !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) {
         flex-wrap:wrap !important; gap:.5rem !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"] {
         width:auto !important; min-width:0 !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(1) {
         order:0; flex:1 1 calc(100% - 104px) !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(2) {
         display:none
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(3) {
         order:2; flex:1 1 34% !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(4) {
         order:3; flex:2 1 58% !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(5) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(5) {
         order:1; flex:0 0 96px !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"] {
+    .st-key-app_header [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) {
         flex-wrap:nowrap !important; gap:.25rem !important
     }
-    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(5) [data-testid="stColumn"] {
+    .st-key-app_header [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) > [data-testid="stColumn"] {
         flex:0 0 auto !important; width:auto !important; min-width:0 !important
     }
     [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] {
