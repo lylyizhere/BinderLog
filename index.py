@@ -1260,9 +1260,6 @@ button p {color:inherit !important}
 @media (max-width: 700px) {
     .block-container {padding:1rem .75rem 2rem; overflow-x:hidden}
     [data-testid="stHorizontalBlock"] {flex-wrap:wrap !important; gap:.7rem !important}
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        flex:1 1 100% !important; width:100% !important; min-width:100% !important
-    }
     .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) {
         flex-wrap:wrap !important; gap:.5rem !important
     }
