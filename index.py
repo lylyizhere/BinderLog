@@ -191,12 +191,16 @@ def autenticar_usuario():
             .st-key-login_screen .stButton {
                 display: flex;
                 justify-content: center;
-                width: 100%;
             }
-            .st-key-login_screen .stButton button {
-                min-height: 3.5rem;
-                padding: .7rem 2rem;
-                font-size: 1.1rem;
+            .st-key-login_screen .st-key-login_google button {
+                min-height: 2.8rem;
+                padding: .5rem 1.35rem;
+                font-size: 1rem;
+            }
+            .st-key-login_screen .st-key-como_usar_site button {
+                min-height: 2.3rem;
+                padding: .35rem 1rem;
+                font-size: .92rem;
             }
             </style>
             """,
@@ -210,10 +214,10 @@ def autenticar_usuario():
                 unsafe_allow_html=True,
             )
             if st.button(
-                "Entrar com Google", type="primary", width="stretch", key="login_google"
+                "Entrar com Google", type="primary", width="content", key="login_google"
             ):
                 st.login()
-            if st.button("Como usar o site", width="stretch", key="como_usar_site"):
+            if st.button("Como usar o site", width="content", key="como_usar_site"):
                 mostrar_como_usar()
         st.stop()
 
