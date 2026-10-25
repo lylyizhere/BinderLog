@@ -1257,6 +1257,28 @@ button p {color:inherit !important}
     .block-container {padding:1.5rem 1.25rem 3rem}
     .hero {padding:24px}
 }
+@media (max-width: 700px) {
+    .block-container {padding:1rem .75rem 2rem; overflow-x:hidden}
+    [data-testid="stHorizontalBlock"] {flex-wrap:wrap !important; gap:.7rem !important}
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex:1 1 100% !important; width:100% !important; min-width:100% !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.25rem !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex:1 1 0% !important; width:auto !important; min-width:0 !important
+    }
+    .hero {grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:18px; margin-bottom:22px}
+    .pill {display:none}
+    .ph {height:clamp(190px,65vw,260px)}
+    .detail-photo {height:clamp(240px,90vw,340px); margin:0 auto}
+    .hd h3 {font-size:19px}
+    [data-testid="stTabs"] [role="tablist"] {
+        width:100%; max-width:100%; overflow-x:auto; justify-content:flex-start
+    }
+    [data-testid="stTabs"] [role="tab"] {flex:0 0 auto; white-space:nowrap}
+}
 @media (max-width: 600px) {
     .block-container {padding:1.2rem .8rem 2.5rem}
     .ttl b {font-size:19px}
@@ -1824,23 +1846,30 @@ with tab_painel:
             st.markdown(f'<div class="hd"><h3>{"Todas as idols" if sel == "Todos" else esc(sel)}</h3>'
                         f'<span>{len(vis)} idols</span></div>', unsafe_allow_html=True)
 
-            cols = st.columns(4)
-            for i, r in enumerate(vis.head(n).itertuples()):
-                with cols[i % 4]:
-                    with st.container(key=f"card_{r.id}"):
-                        nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
-                        st.markdown(
-                            f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
-                            f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
-                            f'{card_html(r)}</a>',
-                            unsafe_allow_html=True)
-                        c1, c2, c3, c4 = st.columns([1, 1.7, 1, 1.1], vertical_alignment="center")
-                        c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
-                                  disabled=bool(r.possuo <= 0))
-                        c2.markdown(f'<div class="cnt">{r.possuo}/{r.total}</div>', unsafe_allow_html=True)
-                        c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
-                                  disabled=bool(r.possuo >= r.total))
-                        c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
+            cards_visiveis = list(vis.head(n).itertuples())
+            for inicio in range(0, len(cards_visiveis), 4):
+                colunas_cards = st.columns(4)
+                for coluna, r in zip(colunas_cards, cards_visiveis[inicio:inicio + 4]):
+                    with coluna:
+                        with st.container(key=f"card_{r.id}"):
+                            nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
+                            st.markdown(
+                                f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
+                                f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
+                                f'{card_html(r)}</a>',
+                                unsafe_allow_html=True)
+                            c1, c2, c3, c4 = st.columns(
+                                [1, 1.7, 1, 1.1], vertical_alignment="center"
+                            )
+                            c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
+                                      disabled=bool(r.possuo <= 0))
+                            c2.markdown(
+                                f'<div class="cnt">{r.possuo}/{r.total}</div>',
+                                unsafe_allow_html=True,
+                            )
+                            c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
+                                      disabled=bool(r.possuo >= r.total))
+                            c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
             if len(vis) > n:
                 st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
                           width="stretch")
