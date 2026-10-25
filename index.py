@@ -1194,8 +1194,10 @@ button p {color:inherit !important}
 }
 [class*="st-key-card_"] .card-link {display:block; color:inherit; text-decoration:none; cursor:pointer}
 [class*="st-key-card_"] .card-link:hover .nm {color:var(--accent); text-decoration:underline; text-underline-offset:4px}
-.ph {position:relative; aspect-ratio:3/4; overflow:hidden; background:var(--photo-bg)}
-.ph img {width:100%; height:100%; object-fit:cover; object-position:top; transition:transform .35s ease}
+.ph {position:relative; width:100%; height:260px; overflow:hidden; background:var(--photo-bg)}
+.ph img {display:block; width:100%; height:100%; object-fit:cover; object-position:top; transition:transform .35s ease}
+.detail-photo {width:100%; max-width:260px; height:340px; overflow:hidden; border-radius:14px; background:var(--photo-bg)}
+.detail-photo img {display:block; width:100%; height:100%; object-fit:cover; object-position:top}
 .card-link:hover .ph img {transform:scale(1.035)}
 .ph.empty {display:grid; place-items:center; background:linear-gradient(145deg,var(--c1),var(--c2))}
 .ph .ini {font-size:46px; font-weight:800; opacity:.62; color:#fff}
@@ -1486,7 +1488,11 @@ if card_selecionado:
     coluna_foto, coluna_sobre = st.columns([1, 2], gap="large", vertical_alignment="top")
     with coluna_foto:
         if card["url_foto"]:
-            st.image(card["url_foto"], width=260)
+            st.markdown(
+                f'<div class="detail-photo"><img src="{esc(card["url_foto"], quote=True)}" '
+                'alt="Foto do card" referrerpolicy="no-referrer" loading="lazy"></div>',
+                unsafe_allow_html=True,
+            )
         else:
             st.info("Ainda não há uma imagem para este card.")
     with coluna_sobre:
