@@ -28,7 +28,7 @@ BOTS = ["Garam", "Hanbin", "Felix", "Jisoo", "Haewon", "Aeri"]
 PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
-VERSAO_DESCRICAO = 7
+VERSAO_DESCRICAO = 8
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -1517,7 +1517,7 @@ if card_selecionado:
                     (int(card_selecionado),))
         roster_url = None
         roster = None
-        st.subheader("Membros do grupo")
+        st.subheader("Membros")
         try:
             with st.spinner(f"Conferindo os integrantes de {card['grupo']} no KProfiles..."):
                 roster, roster_url = buscar_integrantes_kprofiles(card["grupo"])
