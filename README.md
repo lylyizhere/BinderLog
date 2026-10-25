@@ -150,11 +150,13 @@ A busca e a extração de dados do KProfiles ficam em `kprofiles.py`, separadas 
 
 Ao abrir os detalhes de um card, o BinderLog apresenta a imagem ao lado do resumo e consulta o perfil correspondente no KProfiles. A busca considera o nome e o grupo do card e verifica se a apresentação do perfil confirma esse contexto. Se não confirmar, o perfil é descartado para evitar mostrar uma descrição possivelmente errada.
 
-Resumos antigos são atualizados ao abrir o card. Se a atualização falhar, o texto antigo não é mostrado. Os resumos são organizados em parágrafos: apresentação, integrantes e estreia dos grupos; para idols, apresentação e fatos biográficos ou de carreira relevantes encontrados no perfil.
+Resumos antigos são atualizados ao abrir o card. Se a atualização falhar, o texto antigo não é mostrado. O resumo do grupo ou idol é apresentado em texto corrido, reunindo a apresentação e os fatos biográficos, a trajetória e outras informações relevantes encontradas na fonte.
 
-Nos cards de grupo completo, os resumos dos integrantes são carregados individualmente pelo botão de cada pessoa, evitando muitas consultas ao abrir um card. O texto público do perfil é enviado ao serviço MyMemory para tradução para português brasileiro e salvo no banco. Os parágrafos são mantidos, e textos longos são enviados em trechos para respeitar o limite por consulta.
+Nos cards de grupo completo, a seção **Membros** apresenta cada integrante separadamente, com o nome em destaque. O resumo individual é carregado pelo botão de cada pessoa para evitar várias consultas ao abrir um card.
 
-As traduções são espaçadas e trechos já traduzidos são reutilizados. Se o serviço responder com HTTP 429, novas traduções aguardam o prazo informado ou uma hora. Quando a tradução falha após a busca do perfil, o texto original em inglês continua visível na sessão. A busca respeita o limitador e as pausas do KProfiles; em caso de indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
+O texto público do perfil é enviado ao serviço MyMemory e traduzido automaticamente para português brasileiro. A tradução é salva no banco. Textos longos são divididos em trechos para respeitar o limite do serviço, e trechos já traduzidos são reutilizados. Se o serviço responder com HTTP 429, novas traduções aguardam o prazo informado ou uma hora. Se a tradução falhar depois da busca do perfil, o texto original em inglês continua visível na sessão.
+
+A busca respeita o limitador e as pausas do KProfiles. Em caso de indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
 
 As fotos têm direitos autorais dos respectivos donos. O app só guarda o link para uso pessoal.
 
