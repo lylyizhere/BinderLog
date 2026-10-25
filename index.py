@@ -432,14 +432,16 @@ def contexto(idol, grupo):
     grupo   -> idol "-" (coleção do grupo todo): busca a foto do grupo
     solista -> linhas SOLO: busca o idol como solista (grupo de origem só ajuda a achar a pessoa)
     pessoa  -> membro dentro do próprio grupo"""
+    idol = "" if idol is None or pd.isna(idol) else str(idol).strip()
+    grupo = "" if grupo is None or pd.isna(grupo) else str(grupo).strip()
     if idol in (GRUPO_COMPLETO, "Todos os membros", "-"):
         return "grupo", grupo, ALIAS_GRUPO.get(grupo.casefold(), grupo)
     base = re.sub(r"\s+\d+$", "", idol).strip()
     solo = grupo.casefold() == "solo"
-    g = PESSOA_GRUPO.get(base.casefold()) if solo else (
+    g = PESSOA_GRUPO.get(base.casefold(), "") if solo else (
         ALIAS_GRUPO.get(grupo.casefold(), grupo) or PESSOA_GRUPO.get(base.casefold(), "")
     )
-    return ("solista" if solo else "pessoa"), base, g
+    return ("solista" if solo else "pessoa"), base, g or ""
 
 
 def _termos_busca_imagem(tipo, base, grupo):
