@@ -202,10 +202,12 @@ def autenticar_usuario():
     st.session_state["authenticated_user_sub"] = user_sub
     st.session_state["authenticated_user_email"] = email
     st.session_state["owner_email"] = owner_email
-    with st.sidebar:
-        st.caption(f"Conta Google: {email}")
-        if st.button("Sair da conta", width="stretch"):
-            st.logout()
+    st.session_state["authenticated_user_name"] = (
+        str(st.user.get("name", "")).strip() or email.split("@", 1)[0]
+    )
+    st.session_state["authenticated_user_picture"] = str(
+        st.user.get("picture", "")
+    ).strip()
 
 
 def sigla_evento(nome):
@@ -1657,8 +1659,8 @@ if card_selecionado:
 
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
-c_tit, c_pill, c_tema, c_btn = st.columns(
-    [4.2, 2.4, 1.8, 2.4], vertical_alignment="center"
+c_tit, c_pill, c_tema, c_btn, c_user = st.columns(
+    [4.2, 2.4, 1.8, 2.4, 1.0], vertical_alignment="center"
 )
 c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
                '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
@@ -1667,6 +1669,32 @@ c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção
 botao_tema(c_tema)
 if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
     dialog_adicionar()
+nome_conta = st.session_state["authenticated_user_name"]
+email_conta = st.session_state["authenticated_user_email"]
+foto_conta = st.session_state.get("authenticated_user_picture", "")
+if foto_conta.startswith("https://"):
+    avatar_html = (
+        f'<img src="{esc(foto_conta, quote=True)}" alt="Foto do perfil" '
+        'style="width:42px;height:42px;border-radius:50%;object-fit:cover;'
+        'display:block;">'
+    )
+else:
+    iniciais = esc("".join(parte[0] for parte in nome_conta.split()[:2]).upper())
+    avatar_html = (
+        '<div aria-label="Foto do perfil indisponível" '
+        'style="width:42px;height:42px;border-radius:50%;background:#dbeafe;'
+        'color:#1e3a8a;display:flex;align-items:center;justify-content:center;'
+        'font-weight:700;">'
+        f'{iniciais}</div>'
+    )
+with c_user:
+    c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
+    c_foto.markdown(avatar_html, unsafe_allow_html=True)
+    with c_menu.popover("⋮", help="Conta conectada"):
+        st.markdown(f"**{esc(nome_conta)}**")
+        st.caption(email_conta)
+        if st.button("Sair da conta", key="logout_button", width="stretch"):
+            st.logout()
 
 tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(["Painel", "Tabela", "Fotos", "Importar CSV"])
 
