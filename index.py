@@ -1227,7 +1227,7 @@ button p {color:inherit !important}
 }
 [class*="st-key-card_"] [data-testid="stMarkdownContainer"] p {margin:0}
 [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {padding:0 12px; flex-wrap:nowrap; gap:.25rem}
-[class*="st-key-card_"] [data-testid="column"] {min-width:0}
+[class*="st-key-card_"] [data-testid="stColumn"] {min-width:0}
 [class*="st-key-card_"] button {
     width:34px; height:34px; min-height:0; padding:0; border-radius:50%;
     background:var(--card-action-bg); border:1px solid var(--line); color:var(--text);
@@ -1260,60 +1260,50 @@ button p {color:inherit !important}
 @media (max-width: 700px) {
     .block-container {padding:1rem .75rem 2rem; overflow-x:hidden}
     [data-testid="stHorizontalBlock"] {flex-wrap:wrap !important; gap:.7rem !important}
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) {
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex:1 1 100% !important; width:100% !important; min-width:100% !important
+    }
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) {
         flex-wrap:wrap !important; gap:.5rem !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) > [data-testid="column"] {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"] {
         width:auto !important; min-width:0 !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) > [data-testid="column"]:nth-child(1) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(1) {
         order:0; flex:1 1 calc(100% - 104px) !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) > [data-testid="column"]:nth-child(2) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(2) {
         display:none
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) > [data-testid="column"]:nth-child(3) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(3) {
         order:2; flex:1 1 34% !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) > [data-testid="column"]:nth-child(4) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(4) {
         order:3; flex:2 1 58% !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="column"]:nth-child(5)) > [data-testid="column"]:nth-child(5) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(5) {
         order:1; flex:0 0 96px !important
     }
-    .st-key-app_header [data-testid="column"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="column"]:nth-child(3))) {
+    .st-key-app_header [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) {
         flex-wrap:nowrap !important; gap:.25rem !important
     }
-    .st-key-app_header [data-testid="column"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="column"]:nth-child(3))) > [data-testid="column"] {
+    .st-key-app_header [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) > [data-testid="stColumn"] {
         flex:0 0 auto !important; width:auto !important; min-width:0 !important
     }
     [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] {
         flex-wrap:wrap !important; gap:.7rem !important
     }
-    [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex:1 1 calc(50% - .35rem) !important;
         width:calc(50% - .35rem) !important;
         min-width:calc(50% - .35rem) !important
     }
     [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
-        display:grid !important;
-        grid-template-columns:26px minmax(48px, 1fr) 26px 32px !important;
-        align-items:center !important; gap:.15rem !important
+        flex-wrap:nowrap !important; gap:.25rem !important
     }
-    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        display:flex !important; justify-content:center !important; align-items:center !important;
-        flex:none !important; width:auto !important; min-width:0 !important;
-        padding:0 !important; margin:0 !important
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex:1 1 0% !important; width:auto !important; min-width:0 !important
     }
-    [class*="st-key-card_"] button {
-        width:26px !important; height:26px !important; min-height:26px !important;
-        padding:0 !important
-    }
-    [class*="st-key-card_"] .cnt {
-        display:flex; justify-content:center; align-items:center;
-        min-width:0; min-height:30px; white-space:nowrap; font-size:13px
-    }
-    [class*="st-key-card_"] .ring.sm {--s:30px; margin:0 auto}
     .hero {grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:18px; margin-bottom:22px}
     .pill {display:none}
     .ph {height:clamp(145px,42vw,185px)}
