@@ -83,8 +83,9 @@ def conn():
                 (user_sub, user_email, owner_email),
             )
             cursor.execute(
-                "SELECT rolsuper OR rolbypassrls FROM pg_roles "
-                "WHERE rolname = current_user"
+                "SELECT COALESCE(bool_or(rolsuper OR rolbypassrls), false) "
+                "FROM pg_roles WHERE rolname = current_user "
+                "OR pg_has_role(current_user, oid, 'MEMBER')"
             )
             bypasses_policies = cursor.fetchone()[0]
         if bypasses_policies:

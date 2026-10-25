@@ -50,14 +50,15 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
    Cloud, cadastre os mesmos valores em **App settings > Secrets** e use ali a URL pública
    do app em `redirect_uri`; essa URL também precisa estar cadastrada no Google Cloud.
    `OWNER_EMAIL` identifica a conta Google que receberá os dados já existentes no banco.
-   Use em `DATABASE_URL` um usuário PostgreSQL que seja dono das tabelas, mas não tenha
-   `SUPERUSER` nem `BYPASSRLS`; o app interrompe a conexão se o PostgreSQL puder ignorar
-   as regras de isolamento. Se a conta atual do banco for superusuária, crie uma conta
-   de aplicação com um administrador do PostgreSQL e transfira para ela as tabelas e
-   sequências já existentes:
+   O BinderLog exige uma role PostgreSQL que seja dona das tabelas, mas não tenha
+   `SUPERUSER` nem herde `BYPASSRLS`; o app interrompe a conexão se essa role puder
+   ignorar as regras de isolamento. **No Neon, crie a role de aplicação pelo SQL Editor,
+   não pela tela de Roles:** roles criadas pelo Console/API do Neon são associadas a
+   `neon_superuser`, que inclui `BYPASSRLS`. Use a role proprietária atual para executar:
    ```sql
    CREATE ROLE binderlog_app LOGIN PASSWORD 'defina-uma-senha-forte'
        NOSUPERUSER NOBYPASSRLS;
+   GRANT binderlog_app TO CURRENT_USER;
    GRANT CONNECT ON DATABASE binderlog TO binderlog_app;
    GRANT USAGE, CREATE ON SCHEMA public TO binderlog_app;
    ALTER TABLE public.colecao OWNER TO binderlog_app;
@@ -69,8 +70,10 @@ Requisitos: Python 3.12 ou 3.13 (recomendado) e PostgreSQL com pgAdmin.
    ALTER SEQUENCE public.colecao_eras_id_seq OWNER TO binderlog_app;
    ALTER SEQUENCE public.colecao_eventos_id_seq OWNER TO binderlog_app;
    ```
-   Se o banco ainda não tem tabelas, crie a role e conceda os privilégios do banco e do
-   schema; as tabelas serão criadas pelo app. Atualize `DATABASE_URL` para usar essa role.
+   Troque o texto da senha por uma senha forte gerada para a role. Se ainda não existirem
+   as tabelas, omita os comandos `ALTER TABLE`/`ALTER SEQUENCE`; o app as criará. Atualize
+   `DATABASE_URL` com a mesma conexão Neon, mas usando `binderlog_app` e sua senha. Não
+   compartilhe nem faça commit da senha.
 5. Rode:
    ```
    streamlit run index.py
