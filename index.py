@@ -12,6 +12,7 @@ import pandas as pd
 import psycopg2
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 
 from kprofiles import (
     KProfilesRateLimited,
@@ -29,6 +30,12 @@ PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
 VERSAO_DESCRICAO = 8
+
+# Tema do app: as mesmas opções do menu nativo do Streamlit (⋮ → Theme).
+TEMAS = ("system", "light", "dark")
+TEMAS_STREAMLIT = {"system": "System", "light": "Light", "dark": "Dark"}
+ROTULOS_TEMA = {"system": "🖥️ Auto", "light": "☀️ Claro", "dark": "🌙 Escuro"}
+COOKIE_TEMA = "binderlog_tema"
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -156,9 +163,11 @@ def mostrar_como_usar():
     )
     st.markdown("### Aparência")
     st.markdown(
-        "O BinderLog tem tema claro e tema escuro e acompanha o tema escolhido no "
-        "Streamlit. Para trocar, abra o menu **\u22ee** no canto superior direito, "
-        "escolha **Theme** e selecione *System* (segue o sistema), *Light* ou *Dark*."
+        "O BinderLog tem tema claro e tema escuro. No cabeçalho do app, abra o "
+        "seletor de tema e escolha **🖥️ Auto** (segue o tema do sistema), "
+        "**☀️ Claro** ou **🌙 Escuro**. A escolha fica guardada no navegador e "
+        "vale para a página inteira — tabelas, menus e diálogos mudam junto. "
+        "O menu **\u22ee** → **Theme** faz a mesma troca."
     )
 
 
@@ -876,6 +885,82 @@ def modo_do_streamlit():
     return modo if modo in ("light", "dark") else None
 
 
+def tema_salvo():
+    """Tema escolhido no seletor do cabeçalho e guardado pelo navegador."""
+    try:
+        escolha = str(st.context.cookies.get(COOKIE_TEMA, "")).strip().lower()
+    except Exception:
+        return None
+    return escolha if escolha in TEMAS else None
+
+
+def tema_atual():
+    """Modo que o seletor do cabeçalho mostra como escolhido.
+
+    O cookie guarda o que foi escolhido aqui; o menu nativo (⋮) troca o tema por
+    fora. Quando os dois discordam sobre um modo explícito, vale o modo aplicado:
+    é o tema do Streamlit que decide como a página fica."""
+    escolha = tema_salvo()
+    modo = modo_do_streamlit()
+    if escolha in ("light", "dark") and modo in ("light", "dark") and escolha != modo:
+        return modo
+    return escolha or modo or "system"
+
+
+SCRIPT_TEMA = """
+<script>
+(function () {
+  var alvo = JSON.stringify("__STREAMLIT__");
+  var recarregar = __RECARREGAR__;
+  try {
+    var pai = window.parent;
+    var chave = "stActiveTheme-" + pai.location.pathname + "-v2";
+    if (pai.localStorage.getItem(chave) !== alvo) {
+      pai.localStorage.setItem(chave, alvo);
+      if (recarregar) pai.location.reload();
+    }
+    pai.document.cookie =
+      "__COOKIE__=__TEMA__; path=/; max-age=31536000; SameSite=Lax";
+  } catch (erro) {
+    /* Sem acesso à página ou ao armazenamento: mantém o tema já aplicado. */
+  }
+})();
+</script>
+"""
+
+
+def aplicar_tema(escolha, recarregar=True):
+    """Aplica o tema escolhido no app inteiro.
+
+    O Streamlit guarda o tema do menu nativo no navegador (localStorage) e o lê ao
+    carregar a página, porque é o que os componentes nativos usam. O seletor do
+    cabeçalho grava o mesmo valor e recarrega só quando o modo muda; o cookie
+    serve para o app reencontrar a escolha na sessão seguinte."""
+    components.html(
+        SCRIPT_TEMA.replace("__STREAMLIT__", TEMAS_STREAMLIT[escolha])
+                   .replace("__TEMA__", escolha)
+                   .replace("__RECARREGAR__", "true" if recarregar else "false")
+                   .replace("__COOKIE__", COOKIE_TEMA),
+        height=0,
+    )
+
+
+def seletor_de_tema(container):
+    """Seletor de tema do cabeçalho: Auto (segue o sistema), Claro ou Escuro."""
+    atual = tema_atual()
+    with container.popover(
+        ROTULOS_TEMA[atual], help="Escolha a aparência do BinderLog.",
+        width="stretch",
+    ):
+        escolha = st.radio(
+            "Tema", TEMAS, index=TEMAS.index(atual),
+            format_func=ROTULOS_TEMA.__getitem__, key=f"tema_{atual}",
+            label_visibility="collapsed",
+        )
+    if escolha != atual:
+        aplicar_tema(escolha, recarregar=escolha != modo_do_streamlit())
+
+
 def folha_de_estilo():
     """CSS do BinderLog já com a paleta do modo em uso.
 
@@ -1261,28 +1346,31 @@ button p {color:inherit !important}
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex:1 1 100% !important; width:100% !important; min-width:100% !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) {
         flex-wrap:wrap !important; gap:.5rem !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"] {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"] {
         width:auto !important; min-width:0 !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(1) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(1) {
         order:0; flex:1 1 calc(100% - 104px) !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(2) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(2) {
         display:none
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(3) {
-        order:2; flex:1 1 100% !important
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(3) {
+        order:2; flex:1 1 34% !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(4) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(4) {
+        order:3; flex:2 1 58% !important
+    }
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(5)) > [data-testid="stColumn"]:nth-child(5) {
         order:1; flex:0 0 96px !important
     }
-    .st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) {
+    .st-key-app_header [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) {
         flex-wrap:nowrap !important; gap:.25rem !important
     }
-    .st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) > [data-testid="stColumn"] {
+    .st-key-app_header [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) > [data-testid="stColumn"] {
         flex:0 0 auto !important; width:auto !important; min-width:0 !important
     }
     [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] {
@@ -1524,7 +1612,7 @@ if card_selecionado:
         st.query_params.pop("card", None)
         st.stop()
 
-    c_voltar, _ = st.columns([6, 2], vertical_alignment="center")
+    c_voltar, c_tema = st.columns([6, 2], vertical_alignment="center")
     selecionado = df_all[df_all["id"] == card_selecionado]
     if selecionado.empty:
         st.warning("Este card não está mais na coleção.")
@@ -1537,6 +1625,7 @@ if card_selecionado:
     if c_voltar.button("← Voltar ao painel"):
         st.query_params.pop("card", None)
         st.rerun()
+    seletor_de_tema(c_tema)
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
     st.caption(f'{card["grupo"]} · Bot {card["bot"]}')
 
@@ -1762,13 +1851,14 @@ if card_selecionado:
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
 with st.container(key="app_header"):
-    c_tit, c_pill, c_btn, c_user = st.columns(
-        [4.6, 2.6, 2.6, 1.0], vertical_alignment="center"
+    c_tit, c_pill, c_tema, c_btn, c_user = st.columns(
+        [4.2, 2.4, 1.8, 2.4, 1.0], vertical_alignment="center"
     )
     c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
                    '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
     c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
                     unsafe_allow_html=True)
+    seletor_de_tema(c_tema)
     if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
         dialog_adicionar()
     nome_conta = st.session_state["authenticated_user_name"]

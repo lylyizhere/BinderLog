@@ -23,7 +23,9 @@ Nas linhas **SOLO**, o idol é tratado como solista. Um idol indicado como `-` n
 
 O BinderLog tem duas paletas completas — a escura (*Midnight Holo*) e a clara (*Lavender Archive*) — e o layout se ajusta sozinho em telas pequenas: os cards ficam em duas colunas, o cabeçalho passa para duas linhas, as abas rolam na horizontal e a tela de login continua centralizada.
 
-O modo é o do próprio Streamlit: abra o menu **⋮** no canto superior direito, escolha **Theme** e selecione **System** (segue o tema do sistema), **Light** ou **Dark**. A escolha fica guardada no navegador. As cores nativas do Streamlit — tabelas, menus, diálogos e uploads — vêm de `.streamlit/config.toml`, alinhadas às paletas definidas em `index.py`.
+Para trocar de tema use o seletor do cabeçalho (**🖥️ Auto**, **☀️ Claro** ou **🌙 Escuro**) — *Auto* segue o tema do sistema. A escolha fica guardada no navegador e vale para a página inteira: o CSS do BinderLog e os componentes nativos do Streamlit (tabelas, menus, diálogos e uploads) mudam juntos. As cores nativas vêm de `.streamlit/config.toml`, alinhadas às paletas definidas em `index.py`.
+
+O seletor é um atalho para o próprio tema do Streamlit: ele grava a escolha na mesma chave que o menu nativo usa (`stActiveTheme-<rota>-v2`, no `localStorage`) e recarrega a página quando o modo muda, porque o Streamlit lê o tema guardado apenas ao carregar. O cookie `binderlog_tema` guarda a seleção para o app reencontrá-la na sessão seguinte e para o botão mostrar o modo escolhido. O menu **⋮** → **Theme** faz exatamente a mesma troca e continua funcionando.
 
 ## Como rodar
 
