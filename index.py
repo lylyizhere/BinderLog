@@ -1441,7 +1441,7 @@ button p {color:inherit !important}
 </style>
 """
 st.markdown(
-    CSS.replace("THEME_LIGHT_QUERY", theme_media_query, 1),
+    CSS.replace("THEME_LIGHT_QUERY", theme_media_query),
     unsafe_allow_html=True,
 )
 
