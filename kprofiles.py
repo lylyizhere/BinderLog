@@ -472,7 +472,11 @@ def _extrair_info_perfil(html, nomes, tipo):
 def buscar_perfil_kprofiles(
     tipo, base, grupo, nome_busca, termos_busca, versao_cache
 ):
+    base = "" if base is None else str(base).strip()
+    grupo = "" if grupo is None else str(grupo).strip()
     if tipo == "grupo":
+        if not grupo:
+            raise ValueError("O card de grupo não tem o nome do grupo preenchido.")
         perfis = [(grupo, grupo)]
     else:
         perfis = [(termo, nome_busca) for termo in termos_busca]
