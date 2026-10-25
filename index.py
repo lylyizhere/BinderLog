@@ -1263,6 +1263,41 @@ button p {color:inherit !important}
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex:1 1 100% !important; width:100% !important; min-width:100% !important
     }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] {
+        flex-wrap:wrap !important; gap:.5rem !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        width:auto !important; min-width:0 !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1) {
+        order:0; flex:1 1 calc(100% - 104px) !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
+        display:none
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+        order:2; flex:1 1 34% !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {
+        order:3; flex:2 1 58% !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(5) {
+        order:1; flex:0 0 96px !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(5) [data-testid="stHorizontalBlock"] {
+        flex-wrap:nowrap !important; gap:.25rem !important
+    }
+    .st-key-app_header > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(5) [data-testid="stColumn"] {
+        flex:0 0 auto !important; width:auto !important; min-width:0 !important
+    }
+    [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] {
+        flex-wrap:wrap !important; gap:.7rem !important
+    }
+    [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex:1 1 calc(50% - .35rem) !important;
+        width:calc(50% - .35rem) !important;
+        min-width:calc(50% - .35rem) !important
+    }
     [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
         flex-wrap:nowrap !important; gap:.25rem !important
     }
@@ -1271,7 +1306,7 @@ button p {color:inherit !important}
     }
     .hero {grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:18px; margin-bottom:22px}
     .pill {display:none}
-    .ph {height:clamp(190px,65vw,260px)}
+    .ph {height:clamp(145px,42vw,185px)}
     .detail-photo {height:clamp(240px,90vw,340px); margin:0 auto}
     .hd h3 {font-size:19px}
     [data-testid="stTabs"] [role="tablist"] {
@@ -1727,42 +1762,43 @@ if card_selecionado:
 
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
-c_tit, c_pill, c_tema, c_btn, c_user = st.columns(
-    [4.2, 2.4, 1.8, 2.4, 1.0], vertical_alignment="center"
-)
-c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
-               '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
-c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
-                unsafe_allow_html=True)
-botao_tema(c_tema)
-if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
-    dialog_adicionar()
-nome_conta = st.session_state["authenticated_user_name"]
-email_conta = st.session_state["authenticated_user_email"]
-foto_conta = st.session_state.get("authenticated_user_picture", "")
-if foto_conta.startswith("https://"):
-    avatar_html = (
-        f'<img src="{esc(foto_conta, quote=True)}" alt="Foto do perfil" '
-        'style="width:42px;height:42px;border-radius:50%;object-fit:cover;'
-        'display:block;">'
+with st.container(key="app_header"):
+    c_tit, c_pill, c_tema, c_btn, c_user = st.columns(
+        [4.2, 2.4, 1.8, 2.4, 1.0], vertical_alignment="center"
     )
-else:
-    iniciais = esc("".join(parte[0] for parte in nome_conta.split()[:2]).upper())
-    avatar_html = (
-        '<div aria-label="Foto do perfil indisponível" '
-        'style="width:42px;height:42px;border-radius:50%;background:#dbeafe;'
-        'color:#1e3a8a;display:flex;align-items:center;justify-content:center;'
-        'font-weight:700;">'
-        f'{iniciais}</div>'
-    )
-with c_user:
-    c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
-    c_foto.markdown(avatar_html, unsafe_allow_html=True)
-    with c_menu.popover("⋮", help="Conta conectada"):
-        st.markdown(f"**{esc(nome_conta)}**")
-        st.caption(email_conta)
-        if st.button("Sair da conta", key="logout_button", width="stretch"):
-            st.logout()
+    c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
+                   '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
+    c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
+                    unsafe_allow_html=True)
+    botao_tema(c_tema)
+    if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
+        dialog_adicionar()
+    nome_conta = st.session_state["authenticated_user_name"]
+    email_conta = st.session_state["authenticated_user_email"]
+    foto_conta = st.session_state.get("authenticated_user_picture", "")
+    if foto_conta.startswith("https://"):
+        avatar_html = (
+            f'<img src="{esc(foto_conta, quote=True)}" alt="Foto do perfil" '
+            'style="width:42px;height:42px;border-radius:50%;object-fit:cover;'
+            'display:block;">'
+        )
+    else:
+        iniciais = esc("".join(parte[0] for parte in nome_conta.split()[:2]).upper())
+        avatar_html = (
+            '<div aria-label="Foto do perfil indisponível" '
+            'style="width:42px;height:42px;border-radius:50%;background:#dbeafe;'
+            'color:#1e3a8a;display:flex;align-items:center;justify-content:center;'
+            'font-weight:700;">'
+            f'{iniciais}</div>'
+        )
+    with c_user:
+        c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
+        c_foto.markdown(avatar_html, unsafe_allow_html=True)
+        with c_menu.popover("⋮", help="Conta conectada"):
+            st.markdown(f"**{esc(nome_conta)}**")
+            st.caption(email_conta)
+            if st.button("Sair da conta", key="logout_button", width="stretch"):
+                st.logout()
 
 tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(["Painel", "Tabela", "Fotos", "Importar CSV"])
 
@@ -1848,28 +1884,29 @@ with tab_painel:
 
             cards_visiveis = list(vis.head(n).itertuples())
             for inicio in range(0, len(cards_visiveis), 4):
-                colunas_cards = st.columns(4)
-                for coluna, r in zip(colunas_cards, cards_visiveis[inicio:inicio + 4]):
-                    with coluna:
-                        with st.container(key=f"card_{r.id}"):
-                            nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
-                            st.markdown(
-                                f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
-                                f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
-                                f'{card_html(r)}</a>',
-                                unsafe_allow_html=True)
-                            c1, c2, c3, c4 = st.columns(
-                                [1, 1.7, 1, 1.1], vertical_alignment="center"
-                            )
-                            c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
-                                      disabled=bool(r.possuo <= 0))
-                            c2.markdown(
-                                f'<div class="cnt">{r.possuo}/{r.total}</div>',
-                                unsafe_allow_html=True,
-                            )
-                            c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
-                                      disabled=bool(r.possuo >= r.total))
-                            c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
+                with st.container(key=f"cards_row_{inicio}"):
+                    colunas_cards = st.columns(4)
+                    for coluna, r in zip(colunas_cards, cards_visiveis[inicio:inicio + 4]):
+                        with coluna:
+                            with st.container(key=f"card_{r.id}"):
+                                nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
+                                st.markdown(
+                                    f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
+                                    f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
+                                    f'{card_html(r)}</a>',
+                                    unsafe_allow_html=True)
+                                c1, c2, c3, c4 = st.columns(
+                                    [1, 1.7, 1, 1.1], vertical_alignment="center"
+                                )
+                                c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
+                                          disabled=bool(r.possuo <= 0))
+                                c2.markdown(
+                                    f'<div class="cnt">{r.possuo}/{r.total}</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                c3.button("+", key=f"a_{r.id}", on_click=ajustar, args=(r.id, 1),
+                                          disabled=bool(r.possuo >= r.total))
+                                c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
             if len(vis) > n:
                 st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
                           width="stretch")
