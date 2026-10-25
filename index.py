@@ -1304,6 +1304,20 @@ button p {color:inherit !important}
     [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex:1 1 0% !important; width:auto !important; min-width:0 !important
     }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1),
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+        flex:0 0 30px !important; width:30px !important; min-width:30px !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 auto !important; width:auto !important; min-width:38px !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {
+        flex:0 0 34px !important; width:34px !important; min-width:34px !important
+    }
+    [class*="st-key-card_"] button {
+        width:30px !important; height:30px !important; min-height:30px !important
+    }
+    [class*="st-key-card_"] .ring.sm {--s:32px}
     .hero {grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:18px; margin-bottom:22px}
     .pill {display:none}
     .ph {height:clamp(145px,42vw,185px)}
