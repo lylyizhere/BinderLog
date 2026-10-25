@@ -19,6 +19,12 @@ Acompanhe o progresso da sua coleção de cards de K-pop nos bots do Discord **G
 
 Nas linhas **SOLO**, o idol é tratado como solista. Um idol indicado como `-` no CSV vira **Grupo completo**, para quando você coleciona o grupo todo.
 
+## Aparência (tema claro e escuro)
+
+O BinderLog tem duas paletas completas — a escura (*Midnight Holo*) e a clara (*Lavender Archive*) — e o layout se ajusta sozinho em telas pequenas: os cards ficam em duas colunas, o cabeçalho passa para duas linhas, as abas rolam na horizontal e a tela de login continua centralizada.
+
+O modo é o do próprio Streamlit: abra o menu **⋮** no canto superior direito, escolha **Theme** e selecione **System** (segue o tema do sistema), **Light** ou **Dark**. A escolha fica guardada no navegador. As cores nativas do Streamlit — tabelas, menus, diálogos e uploads — vêm de `.streamlit/config.toml`, alinhadas às paletas definidas em `index.py`.
+
 ## Como rodar
 
 ### Requisitos

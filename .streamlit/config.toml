@@ -1,0 +1,23 @@
+# Tema nativo do Streamlit.
+#
+# Estas cores são as mesmas das paletas PALETA_ESCURA e PALETA_CLARA em index.py,
+# para que os componentes nativos do Streamlit (tabelas editáveis, menus, diálogos,
+# uploads, avisos) combinem com o resto da interface nos dois modos.
+#
+# O Streamlit aplica [theme.dark] ou [theme.light] conforme o tema escolhido no
+# menu ⋮ (Theme: System, Light ou Dark). Em "System" ele segue o sistema
+# operacional. O BinderLog acompanha essa escolha automaticamente.
+
+[theme.light]
+primaryColor = "#4267C7"
+backgroundColor = "#F5F4FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#5F6078"
+linkColor = "#087F9C"
+
+[theme.dark]
+primaryColor = "#79DFF2"
+backgroundColor = "#101321"
+secondaryBackgroundColor = "#191D30"
+textColor = "#C0C0D5"
+linkColor = "#79DFF2"
