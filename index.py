@@ -128,10 +128,59 @@ def run_many(sql, linhas):
 
 def autenticar_usuario():
     if not st.user.is_logged_in:
-        st.title("BinderLog")
-        st.write("Entre com sua conta Google para acessar sua coleção privada.")
-        if st.button("Entrar com Google", type="primary"):
-            st.login()
+        st.markdown(
+            """
+            <style>
+            .st-key-login_screen {
+                min-height: calc(100vh - 5rem);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                padding: 2rem 1rem;
+            }
+            .st-key-login_screen [data-testid="stMarkdownContainer"] {
+                text-align: center;
+            }
+            .st-key-login_screen .login-title {
+                margin: 0 0 1rem;
+                color: var(--heading, #102A43);
+                font-size: clamp(2.5rem, 6vw, 4rem);
+                font-weight: 780;
+                letter-spacing: -.045em;
+                line-height: 1.1;
+            }
+            .st-key-login_screen .login-copy {
+                max-width: 38rem;
+                margin: 0 auto 2rem;
+                color: var(--text, #263746);
+                font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+                line-height: 1.6;
+            }
+            .st-key-login_screen .stButton {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+            .st-key-login_screen .stButton button {
+                min-height: 3.5rem;
+                padding: .7rem 2rem;
+                font-size: 1.1rem;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.container(key="login_screen"):
+            st.markdown(
+                '<h1 class="login-title">BinderLog</h1>'
+                '<p class="login-copy">Entre com sua conta Google para acessar '
+                'sua coleção privada.</p>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Entrar com Google", type="primary"):
+                st.login()
         st.stop()
 
     email = str(st.user.get("email", "")).strip().casefold()
