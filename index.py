@@ -126,6 +126,36 @@ def run_many(sql, linhas):
                 cur.execute(_sql(sql), linha)
 
 
+@st.dialog("Como usar o site")
+def mostrar_como_usar():
+    st.markdown(
+        "O **BinderLog** ajuda você a acompanhar sua coleção de cards de K-pop: "
+        "quais idols e grupos você coleciona, quantos cards já tem e quanto falta. "
+        "Você também pode organizar eras, eventos e fotos."
+    )
+    st.markdown("### Como começar")
+    st.markdown(
+        "1. Entre com sua conta Google.\n"
+        "2. Cadastre seus idols manualmente pelo botão **Adicionar idol / bot**.\n"
+        "3. Atualize a quantidade de cards e organize sua coleção nas abas do app."
+    )
+    st.info(
+        "Você não precisa criar nem ter um arquivo CSV para usar o BinderLog. "
+        "O cadastro manual funciona normalmente."
+    )
+    st.markdown("### O que é um arquivo CSV?")
+    st.markdown(
+        "CSV é um arquivo simples de tabela, parecido com uma planilha: cada linha "
+        "contém um registro e as colunas guardam informações como grupo, idol e "
+        "quantidade de cards. No BinderLog, a importação está disponível para os "
+        "arquivos da Garam **Bancodedados** e **Priolist**."
+    )
+    st.markdown(
+        "Se você já tem esses arquivos, entre no app, abra a aba **Importar CSV** "
+        "e envie-os. Se não tem, basta cadastrar sua coleção manualmente."
+    )
+
+
 def autenticar_usuario():
     if not st.user.is_logged_in:
         st.markdown(
@@ -179,8 +209,12 @@ def autenticar_usuario():
                 'sua coleção privada.</p>',
                 unsafe_allow_html=True,
             )
-            if st.button("Entrar com Google", type="primary"):
+            if st.button(
+                "Entrar com Google", type="primary", width="stretch", key="login_google"
+            ):
                 st.login()
+            if st.button("Como usar o site", width="stretch", key="como_usar_site"):
+                mostrar_como_usar()
         st.stop()
 
     email = str(st.user.get("email", "")).strip().casefold()
