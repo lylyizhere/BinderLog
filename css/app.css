@@ -360,15 +360,16 @@ button p {color:inherit !important}
 [class*="st-key-card_"] [data-testid="stMarkdownContainer"] p {margin:0}
 [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
     display:grid !important;
-    grid-template-columns:30px minmax(0,1fr) 30px 36px;
-    align-items:center; gap:4px; padding:0 8px
+    grid-template-columns:30px max-content 30px 36px;
+    justify-content:center; align-items:center;
+    gap:clamp(4px,1vw,8px); padding:0 6px
 }
 [class*="st-key-card_"] [data-testid="stColumn"] {
     display:flex; align-items:center; justify-content:center;
     min-width:0; width:100%
 }
-[class*="st-key-card_"] .ring.sm {--s:32px}
-[class*="st-key-card_"] .ring.sm b {font-size:8px}
+[class*="st-key-card_"] .ring.sm {--s:36px}
+[class*="st-key-card_"] .ring.sm b {font-size:11px}
 [class*="st-key-card_"] button {
     width:30px; height:30px; min-height:0; padding:0; border-radius:50%;
     background:var(--card-action-bg); border:1px solid var(--line); color:var(--text);
@@ -393,7 +394,7 @@ button p {color:inherit !important}
 .bp.complete {color:#102A43; background:var(--gold); border-color:var(--gold)}
 .nm {padding:7px 14px 2px; font-weight:730; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .cnt {
-    text-align:center; font-weight:700; font-size:12px; white-space:nowrap;
+    text-align:center; font-weight:700; font-size:15px; white-space:nowrap;
     color:var(--text); font-variant-numeric:tabular-nums
 }
 
