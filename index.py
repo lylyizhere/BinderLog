@@ -1353,7 +1353,7 @@ with tab_painel:
                                     f'{card_html(r)}</a>',
                                     unsafe_allow_html=True)
                                 c1, c2, c3, c4 = st.columns(
-                                    [1, 1.4, 1, 1.15], vertical_alignment="center"
+                                    4, gap="small", vertical_alignment="center"
                                 )
                                 c1.button("−", key=f"m_{r.id}", on_click=ajustar, args=(r.id, -1),
                                           disabled=bool(r.possuo <= 0))
