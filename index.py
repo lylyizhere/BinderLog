@@ -12,7 +12,6 @@ import pandas as pd
 import psycopg2
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 
 from kprofiles import (
     KProfilesRateLimited,
@@ -30,12 +29,6 @@ PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
 VERSAO_DESCRICAO = 8
-
-# Tema do app: as mesmas opções do menu nativo do Streamlit (⋮ → Theme).
-TEMAS = ("system", "light", "dark")
-TEMAS_STREAMLIT = {"system": "System", "light": "Light", "dark": "Dark"}
-ROTULOS_TEMA = {"system": "🖥️ Auto", "light": "☀️ Claro", "dark": "🌙 Escuro"}
-COOKIE_TEMA = "binderlog_tema"
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -161,34 +154,71 @@ def mostrar_como_usar():
         "Se você já tem esses arquivos, entre no app, abra a aba **Importar CSV** "
         "e envie-os. Se não tem, basta cadastrar sua coleção manualmente."
     )
-    st.markdown("### Aparência")
-    st.markdown(
-        "O BinderLog tem tema claro e tema escuro. No cabeçalho do app, abra o "
-        "seletor de tema e escolha **🖥️ Auto** (segue o tema do sistema), "
-        "**☀️ Claro** ou **🌙 Escuro**. A escolha fica guardada no navegador e "
-        "vale para a página inteira — tabelas, menus e diálogos mudam junto. "
-        "O menu **\u22ee** → **Theme** faz a mesma troca."
-    )
 
 
 def autenticar_usuario():
     if not st.user.is_logged_in:
+        st.markdown(
+            """
+            <style>
+            .st-key-login_screen {
+                min-height: calc(100vh - 5rem);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                padding: 2rem 1rem;
+            }
+            .st-key-login_screen [data-testid="stMarkdownContainer"] {
+                text-align: center;
+            }
+            .st-key-login_screen .login-title {
+                margin: 0 0 1rem;
+                color: var(--heading, #102A43);
+                font-size: clamp(2.5rem, 6vw, 4rem);
+                font-weight: 780;
+                letter-spacing: -.045em;
+                line-height: 1.1;
+            }
+            .st-key-login_screen .login-copy {
+                max-width: 38rem;
+                margin: 0 auto 2rem;
+                color: var(--text, #263746);
+                font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+                line-height: 1.6;
+            }
+            .st-key-login_screen .stButton {
+                display: flex;
+                justify-content: center;
+            }
+            .st-key-login_screen .st-key-login_google button {
+                min-height: 2.8rem;
+                padding: .5rem 1.35rem;
+                font-size: 1rem;
+            }
+            .st-key-login_screen .st-key-como_usar_site button {
+                min-height: 2.3rem;
+                padding: .35rem 1rem;
+                font-size: .92rem;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
         with st.container(key="login_screen"):
-            with st.container(key="login_card"):
-                st.markdown(
-                    '<div class="logo login-logo">💿</div>'
-                    '<h1 class="login-title">BinderLog</h1>'
-                    '<p class="login-copy">Entre com sua conta Google para acessar '
-                    'sua coleção privada.</p>',
-                    unsafe_allow_html=True,
-                )
-                if st.button(
-                    "Entrar com Google", type="primary", width="content",
-                    key="login_google",
-                ):
-                    st.login()
-                if st.button("Como usar o site", width="content", key="como_usar_site"):
-                    mostrar_como_usar()
+            st.markdown(
+                '<h1 class="login-title">BinderLog</h1>'
+                '<p class="login-copy">Entre com sua conta Google para acessar '
+                'sua coleção privada.</p>',
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "Entrar com Google", type="primary", width="content", key="login_google"
+            ):
+                st.login()
+            if st.button("Como usar o site", width="content", key="como_usar_site"):
+                mostrar_como_usar()
         st.stop()
 
     email = str(st.user.get("email", "")).strip().casefold()
@@ -373,6 +403,9 @@ def reivindicar_colecao_existente():
         )
 
 
+autenticar_usuario()
+init_db()
+reivindicar_colecao_existente()
 
 
 # ---------------------------------------------------------------- Busca de imagens
@@ -747,266 +780,151 @@ def ordenar(df, ordem):
 
 
 # ---------------------------------------------------------------- Visual
-# O Streamlit já traz o seletor de tema no menu ⋮ (Theme: System, Light e Dark) e
-# guarda a escolha no navegador. O BinderLog acompanha esse tema em vez de manter
-# um seletor próprio, para que as cores do app e os componentes nativos do
-# Streamlit (tabelas, menus, diálogos, uploads) nunca fiquem em modos diferentes.
-PALETA_ESCURA = """
+THEME_MODES = ("system", "light", "dark")
+THEME_LABELS = {"system": "🖥️ Auto", "light": "☀️ Claro", "dark": "🌙 Escuro"}
+THEME_MEDIA_QUERIES = {
+    "system": "(prefers-color-scheme: light)",
+    "light": "(min-width: 0px)",
+    "dark": "(prefers-color-scheme: no-preference)",
+}
+theme_mode = st.session_state.setdefault("theme_mode", "system")
+theme_media_query = THEME_MEDIA_QUERIES.get(
+    theme_mode, THEME_MEDIA_QUERIES["system"]
+)
+
+
+def botao_tema(container):
+    tema_atual = st.session_state.get("theme_mode", "system")
+    if tema_atual not in THEME_MODES:
+        tema_atual = "system"
+    with container.popover(
+        THEME_LABELS[tema_atual],
+        help="Escolha a aparência do BinderLog.",
+        width="stretch",
+    ):
+        st.radio(
+            "Tema",
+            options=THEME_MODES,
+            format_func=THEME_LABELS.__getitem__,
+            key="theme_mode",
+            label_visibility="collapsed",
+        )
+
+
+CSS = """
+<style>
 :root {
-    --brand: #F3F1FC;
-    --gold: #B7A6FF;
-    --bg: #101321;
-    --bg-soft: #14182A;
-    --panel: rgba(25, 29, 48, .94);
-    --panel-solid: #191D30;
-    --panel-raised: #20253B;
-    --line: #343951;
-    --line-strong: #454C6B;
-    --accent: #79DFF2;
-    --accent-strong: #79DFF2;
-    --accent-soft: #203B4A;
-    --text: #C0C0D5;
-    --heading: #F3F1FC;
-    --muted: #C0C0D5;
-    --tabs-text: #C0C0D5;
-    --subtle: #A3A5BE;
-    --page-glow-one: rgba(121, 223, 242, .10);
-    --page-glow-two: rgba(183, 166, 255, .10);
-    --page-glow-three: rgba(242, 161, 202, .05);
-    --header-bg: rgba(16, 19, 33, .90);
-    --pill-bg: rgba(25, 29, 48, .90);
-    --hero-bg: linear-gradient(125deg, #191D30, #203B4A);
-    --hero-title-gradient: linear-gradient(90deg, #F3F1FC, #79DFF2 72%);
-    --hero-sub: #C0C0D5;
-    --bar-track: rgba(243, 241, 252, .12);
-    --ring-track: rgba(243, 241, 252, .12);
-    --ring-center: #191D30;
-    --ring-sm-center: #20253B;
-    --tabs-bg: rgba(25, 29, 48, .92);
-    --tab-hover-bg: rgba(121, 223, 242, .10);
-    --tab-active-bg: linear-gradient(135deg, #79DFF2, #A1EAF7);
-    --tab-active-color: #101321;
-    --tab-active-shadow: 0 5px 16px rgba(0, 0, 0, .24);
-    --button-secondary-bg: #20253B;
-    --button-primary-bg: linear-gradient(135deg, #79DFF2, #A1EAF7);
-    --button-primary-text: #101321;
-    --input-bg: #14182A;
-    --uploader-bg: rgba(25, 29, 48, .70);
-    --uploader-hover-bg: rgba(32, 59, 74, .85);
-    --alert-info-bg: rgba(121, 223, 242, .10);
-    --alert-success-bg: rgba(105, 202, 165, .12);
-    --alert-warning-bg: rgba(242, 161, 202, .12);
-    --alert-error-bg: rgba(242, 161, 202, .14);
-    --expander-bg: rgba(25, 29, 48, .78);
-    --collection-button-bg: rgba(25, 29, 48, .92);
-    --card-action-bg: rgba(121, 223, 242, .10);
-    --card-bg: linear-gradient(160deg, #191D30, #14182A);
-    --card-shadow: 0 10px 28px rgba(0, 0, 0, .22);
-    --card-shadow-hover: 0 16px 35px rgba(0, 0, 0, .34);
-    --photo-bg: #20253B;
-    --badge-bg: rgba(16, 19, 33, .90);
-    --badge-border: rgba(121, 223, 242, .30);
+    --brand: #102A43;
+    --gold: #D8B56D;
+    --bg: #091925;
+    --bg-soft: #0c2030;
+    --panel: rgba(16, 42, 67, .88);
+    --panel-solid: #102A43;
+    --panel-raised: #173954;
+    --line: rgba(66, 217, 245, .14);
+    --line-strong: rgba(66, 217, 245, .28);
+    --accent: #42D9F5;
+    --accent-strong: #42D9F5;
+    --accent-soft: rgba(66, 217, 245, .14);
+    --text: #eaf6fa;
+    --heading: #eaf6fa;
+    --muted: #afc5d2;
+    --tabs-text: #afc5d2;
+    --subtle: #7f9aaa;
+    --page-glow-one: rgba(66, 217, 245, .12);
+    --page-glow-two: rgba(16, 42, 67, .42);
+    --header-bg: rgba(9, 25, 37, .82);
+    --pill-bg: rgba(16, 42, 67, .82);
+    --hero-bg: linear-gradient(125deg,rgba(16,42,67,.98),rgba(13,58,75,.96));
+    --hero-title-gradient: linear-gradient(90deg,#eaf6fa,#42D9F5 72%);
+    --hero-sub: #c4d8e2;
+    --bar-track: rgba(234,246,250,.12);
+    --ring-track: rgba(234,246,250,.12);
+    --ring-center: #102A43;
+    --ring-sm-center: #173954;
+    --tabs-bg: rgba(16, 42, 67, .86);
+    --tab-hover-bg: rgba(66, 217, 245, .1);
+    --tab-active-bg: linear-gradient(135deg,#42D9F5,#27b9d4);
+    --tab-active-color: #102A43;
+    --tab-active-shadow: 0 5px 16px rgba(0,0,0,.24);
+    --button-secondary-bg: rgba(16,42,67,.8);
+    --button-primary-bg: linear-gradient(135deg,#42D9F5,#24b8d3);
+    --button-primary-text: #102A43;
+    --input-bg: rgba(10,29,44,.9);
+    --uploader-bg: rgba(16,42,67,.56);
+    --uploader-hover-bg: rgba(20,67,88,.72);
+    --alert-info-bg: rgba(66,217,245,.1);
+    --alert-success-bg: rgba(105,202,165,.12);
+    --alert-warning-bg: rgba(216,181,109,.14);
+    --alert-error-bg: rgba(232,113,142,.13);
+    --expander-bg: rgba(16,42,67,.62);
+    --collection-button-bg: rgba(16,42,67,.84);
+    --card-action-bg: rgba(66,217,245,.1);
+    --card-bg: linear-gradient(160deg,rgba(16,42,67,.98),rgba(12,32,48,.98));
+    --card-shadow: 0 10px 28px rgba(0,0,0,.2);
+    --card-shadow-hover: 0 16px 35px rgba(0,0,0,.3);
+    --photo-bg: #102A43;
+    --badge-bg: rgba(7,22,34,.8);
+    --badge-border: rgba(66,217,245,.25);
     --radius: 18px;
     color-scheme: dark;
 }
-"""
 
-PALETA_CLARA = """
-:root {
-    --brand: #29283B;
-    --gold: #7563CB;
-    --bg: #F5F4FB;
-    --bg-soft: #ECEAF7;
-    --panel: rgba(255, 255, 255, .94);
-    --panel-solid: #FFFFFF;
-    --panel-raised: #F0EFF9;
-    --line: #DFDDEC;
-    --line-strong: #C9C7DE;
-    --accent: #087F9C;
-    --accent-strong: #087F9C;
-    --accent-soft: #E3EAFE;
-    --text: #5F6078;
-    --heading: #29283B;
-    --muted: #5F6078;
-    --tabs-text: #5F6078;
-    --subtle: #74758B;
-    --page-glow-one: rgba(117, 99, 203, .12);
-    --page-glow-two: rgba(8, 127, 156, .08);
-    --page-glow-three: rgba(199, 107, 152, .06);
-    --header-bg: rgba(245, 244, 251, .92);
-    --pill-bg: rgba(255, 255, 255, .90);
-    --hero-bg: linear-gradient(125deg, #FFFFFF, #E3EAFE);
-    --hero-title-gradient: linear-gradient(90deg, #29283B, #7563CB 72%);
-    --hero-sub: #5F6078;
-    --bar-track: rgba(41, 40, 59, .10);
-    --ring-track: rgba(41, 40, 59, .10);
-    --ring-center: #FFFFFF;
-    --ring-sm-center: #F0EFF9;
-    --tabs-bg: rgba(236, 234, 247, .94);
-    --tab-hover-bg: rgba(117, 99, 203, .10);
-    --tab-active-bg: linear-gradient(135deg, #7563CB, #4267C7);
-    --tab-active-color: #FFFFFF;
-    --tab-active-shadow: 0 5px 16px rgba(16, 42, 67, .16);
-    --button-secondary-bg: rgba(255, 255, 255, .92);
-    --button-primary-bg: linear-gradient(135deg, #4267C7, #3453A8);
-    --button-primary-text: #FFFFFF;
-    --input-bg: #FFFFFF;
-    --uploader-bg: rgba(255, 255, 255, .78);
-    --uploader-hover-bg: rgba(227, 234, 254, .92);
-    --alert-info-bg: rgba(8, 127, 156, .08);
-    --alert-success-bg: rgba(36, 143, 102, .09);
-    --alert-warning-bg: rgba(199, 107, 152, .10);
-    --alert-error-bg: rgba(199, 107, 152, .10);
-    --expander-bg: rgba(255, 255, 255, .82);
-    --collection-button-bg: rgba(255, 255, 255, .90);
-    --card-action-bg: rgba(117, 99, 203, .08);
-    --card-bg: linear-gradient(160deg, #FFFFFF, #F0EFF9);
-    --card-shadow: 0 10px 28px rgba(41, 40, 59, .08);
-    --card-shadow-hover: 0 16px 35px rgba(41, 40, 59, .14);
-    --photo-bg: #E9E8F7;
-    --badge-bg: rgba(41, 40, 59, .88);
-    --badge-border: rgba(255, 255, 255, .38);
-    --radius: 18px;
-    color-scheme: light;
-}
-"""
-
-
-def modo_do_streamlit():
-    """Modo de cor que o Streamlit está aplicando agora: "light", "dark" ou None.
-
-    A escolha é do usuário, no menu ⋮ (Theme). Antes de o cliente informar o modo
-    — no primeiro carregamento da sessão — devolvemos None e a folha de estilo segue
-    a preferência do sistema operacional."""
-    try:
-        modo = st.context.theme.type
-    except Exception:
-        return None
-    return modo if modo in ("light", "dark") else None
-
-
-def tema_salvo():
-    """Tema escolhido no seletor do cabeçalho e guardado pelo navegador."""
-    try:
-        escolha = str(st.context.cookies.get(COOKIE_TEMA, "")).strip().lower()
-    except Exception:
-        return None
-    return escolha if escolha in TEMAS else None
-
-
-def tema_atual():
-    """Modo que o seletor do cabeçalho mostra como escolhido.
-
-    O cookie guarda o que foi escolhido aqui; o menu nativo (⋮) troca o tema por
-    fora. Quando os dois discordam sobre um modo explícito, vale o modo aplicado:
-    é o tema do Streamlit que decide como a página fica."""
-    escolha = tema_salvo()
-    modo = modo_do_streamlit()
-    if escolha in ("light", "dark") and modo in ("light", "dark") and escolha != modo:
-        return modo
-    return escolha or modo or "system"
-
-
-SCRIPT_TEMA = """
-<script>
-(function () {
-  var alvo = JSON.stringify("__STREAMLIT__");
-  var recarregar = __RECARREGAR__;
-  try {
-    var pai = window.parent;
-    var chave = "stActiveTheme-" + pai.location.pathname + "-v2";
-    if (pai.localStorage.getItem(chave) !== alvo) {
-      pai.localStorage.setItem(chave, alvo);
-      if (recarregar) pai.location.reload();
+@media THEME_LIGHT_QUERY {
+    :root {
+        --bg: #f3f8fb;
+        --bg-soft: #eaf3f7;
+        --panel: rgba(255, 255, 255, .9);
+        --panel-solid: #fff;
+        --panel-raised: #eaf3f7;
+        --line: rgba(16, 42, 67, .12);
+        --line-strong: rgba(16, 42, 67, .22);
+        --accent: #087F9C;
+        --accent-strong: #087F9C;
+        --accent-soft: rgba(8, 127, 156, .12);
+        --text: #263f53;
+        --heading: #102A43;
+        --muted: #526b7c;
+        --tabs-text: #526b7c;
+        --subtle: #758b99;
+        --page-glow-one: rgba(66, 217, 245, .3);
+        --page-glow-two: rgba(8, 127, 156, .12);
+        --page-glow-three: rgba(216, 181, 109, .08);
+        --header-bg: rgba(243, 248, 251, .88);
+        --pill-bg: rgba(255, 255, 255, .84);
+        --hero-bg: linear-gradient(125deg,rgba(225,239,247,.98),rgba(220,245,247,.96));
+        --hero-title-gradient: linear-gradient(90deg,#102A43,#087F9C 72%);
+        --hero-sub: #405a6e;
+        --bar-track: rgba(16, 42, 67, .12);
+        --ring-track: rgba(16, 42, 67, .12);
+        --ring-center: #fff;
+        --ring-sm-center: #eaf3f7;
+        --tabs-bg: rgba(234, 243, 247, .92);
+        --tab-hover-bg: rgba(8, 127, 156, .1);
+        --tab-active-bg: linear-gradient(135deg,#42D9F5,#24b8d3);
+        --tab-active-color: #102A43;
+        --tab-active-shadow: 0 5px 16px rgba(16, 42, 67, .16);
+        --button-secondary-bg: rgba(255, 255, 255, .86);
+        --button-primary-bg: linear-gradient(135deg,#087F9C,#066b84);
+        --button-primary-text: #fff;
+        --input-bg: rgba(255, 255, 255, .96);
+        --uploader-bg: rgba(255, 255, 255, .62);
+        --uploader-hover-bg: rgba(220, 245, 247, .84);
+        --alert-info-bg: rgba(8, 127, 156, .08);
+        --alert-success-bg: rgba(36, 143, 102, .09);
+        --alert-warning-bg: rgba(216, 181, 109, .15);
+        --alert-error-bg: rgba(190, 62, 91, .09);
+        --expander-bg: rgba(255, 255, 255, .72);
+        --collection-button-bg: rgba(255, 255, 255, .84);
+        --card-action-bg: rgba(8, 127, 156, .08);
+        --card-bg: linear-gradient(160deg,rgba(255,255,255,.98),rgba(239,247,250,.98));
+        --card-shadow: 0 10px 28px rgba(16, 42, 67, .09);
+        --card-shadow-hover: 0 16px 35px rgba(16, 42, 67, .15);
+        --photo-bg: #e5eff4;
+        --badge-bg: rgba(16, 42, 67, .84);
+        --badge-border: rgba(255,255,255,.32);
+        color-scheme: light;
     }
-    pai.document.cookie =
-      "__COOKIE__=__TEMA__; path=/; max-age=31536000; SameSite=Lax";
-  } catch (erro) {
-    /* Sem acesso à página ou ao armazenamento: mantém o tema já aplicado. */
-  }
-})();
-</script>
-"""
-
-
-def aplicar_tema(escolha, recarregar=True):
-    """Aplica o tema escolhido no app inteiro.
-
-    O Streamlit guarda o tema do menu nativo no navegador (localStorage) e o lê ao
-    carregar a página, porque é o que os componentes nativos usam. O seletor do
-    cabeçalho grava o mesmo valor e recarrega só quando o modo muda; o cookie
-    serve para o app reencontrar a escolha na sessão seguinte."""
-    components.html(
-        SCRIPT_TEMA.replace("__STREAMLIT__", TEMAS_STREAMLIT[escolha])
-                   .replace("__TEMA__", escolha)
-                   .replace("__RECARREGAR__", "true" if recarregar else "false")
-                   .replace("__COOKIE__", COOKIE_TEMA),
-        height=0,
-    )
-
-
-def seletor_de_tema(container):
-    """Seletor de tema do cabeçalho: Auto (segue o sistema), Claro ou Escuro."""
-    atual = tema_atual()
-    with container.popover(
-        ROTULOS_TEMA[atual], help="Escolha a aparência do BinderLog.",
-        width="stretch",
-    ):
-        escolha = st.radio(
-            "Tema", TEMAS, index=TEMAS.index(atual),
-            format_func=ROTULOS_TEMA.__getitem__, key=f"tema_{atual}",
-            label_visibility="collapsed",
-        )
-    if escolha != atual:
-        aplicar_tema(escolha, recarregar=escolha != modo_do_streamlit())
-
-
-def folha_de_estilo():
-    """CSS do BinderLog já com a paleta do modo em uso.
-
-    A paleta escura é a base; a clara entra por cima quando o modo é claro ou,
-    sem modo conhecido, quando o sistema pede tema claro."""
-    modo = modo_do_streamlit()
-    if modo == "light":
-        paletas = PALETA_ESCURA + PALETA_CLARA
-    elif modo == "dark":
-        paletas = PALETA_ESCURA
-    else:
-        paletas = (PALETA_ESCURA + "@media (prefers-color-scheme: light) {"
-                   + PALETA_CLARA + "}")
-    return "<style>" + paletas + ESTILOS + "</style>"
-
-
-ESTILOS = """
-<style>
-.st-key-login_screen {
-    min-height: calc(100vh - 6rem);
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; padding: 2rem 1rem;
-}
-.st-key-login_card {
-    width: 100%; max-width: 34rem; margin: 0 auto;
-    padding: 2.5rem 2rem 2.2rem;
-    border: 1px solid var(--line-strong); border-radius: var(--radius);
-    background: var(--card-bg); box-shadow: var(--card-shadow);
-}
-.st-key-login_screen [data-testid="stMarkdownContainer"] {text-align: center}
-.login-logo {margin: 0 auto 1.1rem; width: 64px; height: 64px; border-radius: 20px; font-size: 30px}
-.st-key-login_screen .login-title {
-    margin: 0 0 1rem; color: var(--heading);
-    font-size: clamp(2.4rem, 6vw, 3.5rem); font-weight: 780;
-    letter-spacing: -.045em; line-height: 1.1;
-}
-.st-key-login_screen .login-copy {
-    max-width: 30rem; margin: 0 auto 2rem; color: var(--muted);
-    font-size: clamp(1.05rem, 2.5vw, 1.3rem); line-height: 1.6;
-}
-.st-key-login_screen .stButton {display: flex; justify-content: center}
-.st-key-login_screen .st-key-login_google button {
-    min-height: 2.8rem; padding: .5rem 1.35rem; font-size: 1rem;
-}
-.st-key-login_screen .st-key-como_usar_site button {
-    min-height: 2.3rem; padding: .35rem 1rem; font-size: .92rem;
 }
 
 .stApp {
@@ -1016,13 +934,13 @@ ESTILOS = """
         radial-gradient(ellipse at 94% 15%, var(--page-glow-two), transparent 32rem),
         radial-gradient(ellipse at 52% -12%, var(--page-glow-three, transparent), transparent 38rem),
         var(--bg) !important;
-    font-family: inherit;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 [data-testid="stHorizontalBlock"]:has(.ttl) button {
     min-height:48px; position:relative; top:8px;
 }
 body {background:var(--bg) !important; color:var(--text) !important}
-footer {visibility: hidden}
+#MainMenu, footer {visibility: hidden}
 [data-testid="stDialog"] [role="dialog"] {
     border:1px solid var(--line-strong) !important;
     border-radius:16px !important;
@@ -1031,7 +949,7 @@ footer {visibility: hidden}
     box-shadow:0 18px 50px rgba(16,42,67,.24) !important;
 }
 [data-testid="stDialog"] [aria-label="Close"] {color:var(--text) !important}
-header[data-testid="stHeader"] {background: var(--header-bg)}
+header[data-testid="stHeader"] {display: none}
 .block-container {max-width: 1440px; padding: 2.1rem 3rem 4rem}
 
 h1, h2, h3, h4 {color: var(--heading); letter-spacing: -.035em}
@@ -1403,18 +1321,129 @@ button p {color:inherit !important}
     .hero {padding:20px; border-radius:20px}
     .ring:not(.sm) {--s:72px}
     [data-testid="stTabs"] [role="tab"] {padding:0 10px; font-size:12px}
-    .st-key-login_screen {padding:1rem .5rem}
-    .st-key-login_card {padding:1.75rem 1.15rem 1.5rem}
-    .login-logo {width:54px; height:54px; border-radius:17px; font-size:26px}
 }
 
+/* BinderLog palette: Midnight Holo (dark) */
+:root {
+    --brand: #F3F1FC;
+    --gold: #B7A6FF;
+    --bg: #101321;
+    --bg-soft: #14182A;
+    --panel: rgba(25, 29, 48, .94);
+    --panel-solid: #191D30;
+    --panel-raised: #20253B;
+    --line: #343951;
+    --line-strong: #454C6B;
+    --accent: #79DFF2;
+    --accent-strong: #79DFF2;
+    --accent-soft: #203B4A;
+    --text: #C0C0D5;
+    --heading: #F3F1FC;
+    --muted: #C0C0D5;
+    --tabs-text: #C0C0D5;
+    --subtle: #A3A5BE;
+    --page-glow-one: rgba(121, 223, 242, .10);
+    --page-glow-two: rgba(183, 166, 255, .10);
+    --page-glow-three: rgba(242, 161, 202, .05);
+    --header-bg: rgba(16, 19, 33, .90);
+    --pill-bg: rgba(25, 29, 48, .90);
+    --hero-bg: linear-gradient(125deg, #191D30, #203B4A);
+    --hero-title-gradient: linear-gradient(90deg, #F3F1FC, #79DFF2 72%);
+    --hero-sub: #C0C0D5;
+    --bar-track: rgba(243, 241, 252, .12);
+    --ring-track: rgba(243, 241, 252, .12);
+    --ring-center: #191D30;
+    --ring-sm-center: #20253B;
+    --tabs-bg: rgba(25, 29, 48, .92);
+    --tab-hover-bg: rgba(121, 223, 242, .10);
+    --tab-active-bg: linear-gradient(135deg, #79DFF2, #A1EAF7);
+    --tab-active-color: #101321;
+    --button-secondary-bg: #20253B;
+    --button-primary-bg: linear-gradient(135deg, #79DFF2, #A1EAF7);
+    --button-primary-text: #101321;
+    --input-bg: #14182A;
+    --uploader-bg: rgba(25, 29, 48, .70);
+    --uploader-hover-bg: rgba(32, 59, 74, .85);
+    --alert-info-bg: rgba(121, 223, 242, .10);
+    --alert-success-bg: rgba(105, 202, 165, .12);
+    --alert-warning-bg: rgba(242, 161, 202, .12);
+    --alert-error-bg: rgba(242, 161, 202, .14);
+    --expander-bg: rgba(25, 29, 48, .78);
+    --collection-button-bg: rgba(25, 29, 48, .92);
+    --card-action-bg: rgba(121, 223, 242, .10);
+    --card-bg: linear-gradient(160deg, #191D30, #14182A);
+    --card-shadow: 0 10px 28px rgba(0, 0, 0, .22);
+    --card-shadow-hover: 0 16px 35px rgba(0, 0, 0, .34);
+    --photo-bg: #20253B;
+    --badge-bg: rgba(16, 19, 33, .90);
+    --badge-border: rgba(121, 223, 242, .30);
+    color-scheme: dark;
+}
+
+/* BinderLog palette: Lavender Archive (light) */
+@media THEME_LIGHT_QUERY {
+    :root {
+        --brand: #29283B;
+        --gold: #7563CB;
+        --bg: #F5F4FB;
+        --bg-soft: #ECEAF7;
+        --panel: rgba(255, 255, 255, .94);
+        --panel-solid: #FFFFFF;
+        --panel-raised: #F0EFF9;
+        --line: #DFDDEC;
+        --line-strong: #C9C7DE;
+        --accent: #087F9C;
+        --accent-strong: #087F9C;
+        --accent-soft: #E3EAFE;
+        --text: #5F6078;
+        --heading: #29283B;
+        --muted: #5F6078;
+        --tabs-text: #5F6078;
+        --subtle: #74758B;
+        --page-glow-one: rgba(117, 99, 203, .12);
+        --page-glow-two: rgba(8, 127, 156, .08);
+        --page-glow-three: rgba(199, 107, 152, .06);
+        --header-bg: rgba(245, 244, 251, .92);
+        --pill-bg: rgba(255, 255, 255, .90);
+        --hero-bg: linear-gradient(125deg, #FFFFFF, #E3EAFE);
+        --hero-title-gradient: linear-gradient(90deg, #29283B, #7563CB 72%);
+        --hero-sub: #5F6078;
+        --bar-track: rgba(41, 40, 59, .10);
+        --ring-track: rgba(41, 40, 59, .10);
+        --ring-center: #FFFFFF;
+        --ring-sm-center: #F0EFF9;
+        --tabs-bg: rgba(236, 234, 247, .94);
+        --tab-hover-bg: rgba(117, 99, 203, .10);
+        --tab-active-bg: linear-gradient(135deg, #7563CB, #4267C7);
+        --tab-active-color: #FFFFFF;
+        --button-secondary-bg: rgba(255, 255, 255, .92);
+        --button-primary-bg: linear-gradient(135deg, #4267C7, #3453A8);
+        --button-primary-text: #FFFFFF;
+        --input-bg: #FFFFFF;
+        --uploader-bg: rgba(255, 255, 255, .78);
+        --uploader-hover-bg: rgba(227, 234, 254, .92);
+        --alert-info-bg: rgba(8, 127, 156, .08);
+        --alert-success-bg: rgba(36, 143, 102, .09);
+        --alert-warning-bg: rgba(199, 107, 152, .10);
+        --alert-error-bg: rgba(199, 107, 152, .10);
+        --expander-bg: rgba(255, 255, 255, .82);
+        --collection-button-bg: rgba(255, 255, 255, .90);
+        --card-action-bg: rgba(117, 99, 203, .08);
+        --card-bg: linear-gradient(160deg, #FFFFFF, #F0EFF9);
+        --card-shadow: 0 10px 28px rgba(41, 40, 59, .08);
+        --card-shadow-hover: 0 16px 35px rgba(41, 40, 59, .14);
+        --photo-bg: #E9E8F7;
+        --badge-bg: rgba(41, 40, 59, .88);
+        --badge-border: rgba(255, 255, 255, .38);
+        color-scheme: light;
+    }
+}
 </style>
 """
-st.markdown(folha_de_estilo(), unsafe_allow_html=True)
-
-autenticar_usuario()
-init_db()
-reivindicar_colecao_existente()
+st.markdown(
+    CSS.replace("THEME_LIGHT_QUERY", theme_media_query),
+    unsafe_allow_html=True,
+)
 
 
 def pct(parte, total):
@@ -1613,6 +1642,7 @@ if card_selecionado:
         st.stop()
 
     c_voltar, c_tema = st.columns([6, 2], vertical_alignment="center")
+    botao_tema(c_tema)
     selecionado = df_all[df_all["id"] == card_selecionado]
     if selecionado.empty:
         st.warning("Este card não está mais na coleção.")
@@ -1625,7 +1655,6 @@ if card_selecionado:
     if c_voltar.button("← Voltar ao painel"):
         st.query_params.pop("card", None)
         st.rerun()
-    seletor_de_tema(c_tema)
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
     st.caption(f'{card["grupo"]} · Bot {card["bot"]}')
 
@@ -1858,7 +1887,7 @@ with st.container(key="app_header"):
                    '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
     c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
                     unsafe_allow_html=True)
-    seletor_de_tema(c_tema)
+    botao_tema(c_tema)
     if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
         dialog_adicionar()
     nome_conta = st.session_state["authenticated_user_name"]
