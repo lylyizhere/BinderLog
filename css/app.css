@@ -357,10 +357,14 @@ button p {color:inherit !important}
     box-shadow:var(--card-shadow-hover);
 }
 [class*="st-key-card_"] [data-testid="stMarkdownContainer"] p {margin:0}
-[class*="st-key-card_"] [data-testid="stHorizontalBlock"] {padding:0 12px; flex-wrap:nowrap; gap:.25rem}
+[class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
+    align-items:center; padding:0 8px; flex-wrap:nowrap; gap:.2rem
+}
 [class*="st-key-card_"] [data-testid="stColumn"] {min-width:0}
+[class*="st-key-card_"] .ring.sm {--s:32px}
+[class*="st-key-card_"] .ring.sm b {font-size:8px}
 [class*="st-key-card_"] button {
-    width:34px; height:34px; min-height:0; padding:0; border-radius:50%;
+    width:30px; height:30px; min-height:0; padding:0; border-radius:50%;
     background:var(--card-action-bg); border:1px solid var(--line); color:var(--text);
 }
 [class*="st-key-card_"] .card-link {display:block; color:inherit; text-decoration:none; cursor:pointer}
@@ -382,7 +386,10 @@ button p {color:inherit !important}
 .bp {right:10px; color:var(--accent)}
 .bp.complete {color:#102A43; background:var(--gold); border-color:var(--gold)}
 .nm {padding:7px 14px 2px; font-weight:730; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.cnt {text-align:center; font-weight:700; font-size:14px; white-space:nowrap; color:var(--text)}
+.cnt {
+    text-align:center; font-weight:700; font-size:12px; white-space:nowrap;
+    color:var(--text); font-variant-numeric:tabular-nums
+}
 
 @media (max-width: 900px) {
     .block-container {padding:1.5rem 1.25rem 3rem}
@@ -439,7 +446,17 @@ button p {color:inherit !important}
         flex-wrap:nowrap !important; gap:.25rem !important
     }
     [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-        flex:1 1 0% !important; width:auto !important; min-width:0 !important
+        width:auto !important; min-width:0 !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(1),
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {
+        flex:1 1 0% !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
+        flex:1.4 1 0% !important
+    }
+    [class*="st-key-card_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {
+        flex:1.15 1 0% !important
     }
     .hero {grid-template-columns:minmax(0,1fr) auto; gap:10px; padding:18px; margin-bottom:22px}
     .pill {display:none}
