@@ -780,41 +780,10 @@ def ordenar(df, ordem):
 
 
 # ---------------------------------------------------------------- Visual
-THEME_MODES = ("system", "light", "dark")
-THEME_LABELS = {"system": "🖥️ Auto", "light": "☀️ Claro", "dark": "🌙 Escuro"}
-THEME_MEDIA_QUERIES = {
-    "system": "(prefers-color-scheme: light)",
-    "light": "(min-width: 0px)",
-}
-theme_mode = st.session_state.setdefault("theme_mode", "system")
-theme_media_query = THEME_MEDIA_QUERIES.get(
-    theme_mode, THEME_MEDIA_QUERIES["system"]
-)
-
-
-def botao_tema(container):
-    tema_atual = st.session_state.get("theme_mode", "system")
-    if tema_atual not in THEME_MODES:
-        tema_atual = "system"
-    with container.popover(
-        THEME_LABELS[tema_atual],
-        help="Escolha a aparência do BinderLog.",
-        width="stretch",
-    ):
-        st.radio(
-            "Tema",
-            options=THEME_MODES,
-            format_func=THEME_LABELS.__getitem__,
-            key="theme_mode",
-            label_visibility="collapsed",
-        )
-
-
 CSS_DIR = Path(__file__).resolve().parent / "css"
 app_css = (CSS_DIR / "app.css").read_text(encoding="utf-8")
-light_theme_css = (CSS_DIR / "light-theme.css").read_text(encoding="utf-8")
 st.markdown(
-    f"<style>{app_css}\n@media {theme_media_query} {{{light_theme_css}}}</style>",
+    f"<style>{app_css}</style>",
     unsafe_allow_html=True,
 )
 
@@ -1015,18 +984,16 @@ if card_selecionado:
         st.query_params.pop("card", None)
         st.stop()
 
-    c_voltar, c_tema = st.columns([6, 2], vertical_alignment="center")
-    botao_tema(c_tema)
     selecionado = df_all[df_all["id"] == card_selecionado]
     if selecionado.empty:
         st.warning("Este card não está mais na coleção.")
-        if c_voltar.button("← Voltar ao painel"):
+        if st.button("← Voltar ao painel"):
             st.query_params.pop("card", None)
             st.rerun()
         st.stop()
 
     card = selecionado.iloc[0]
-    if c_voltar.button("← Voltar ao painel"):
+    if st.button("← Voltar ao painel"):
         st.query_params.pop("card", None)
         st.rerun()
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
@@ -1254,14 +1221,13 @@ if card_selecionado:
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
 with st.container(key="app_header"):
-    c_tit, c_pill, c_tema, c_btn, c_user = st.columns(
-        [4.2, 2.4, 1.8, 2.4, 1.0], vertical_alignment="center"
+    c_tit, c_pill, c_btn, c_user = st.columns(
+        [4.2, 2.4, 2.4, 1.0], vertical_alignment="center"
     )
     c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
                    '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
     c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
                     unsafe_allow_html=True)
-    botao_tema(c_tema)
     if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
         dialog_adicionar()
     nome_conta = st.session_state["authenticated_user_name"]
