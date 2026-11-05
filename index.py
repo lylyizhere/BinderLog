@@ -1437,6 +1437,12 @@ button p {color:inherit !important}
         --badge-border: rgba(255, 255, 255, .38);
         color-scheme: light;
     }
+
+    html, body, #root, .stApp, [data-testid="stAppViewContainer"],
+    [data-testid="stMain"] {
+        background-color: #FFFFFF !important;
+        background-image: none !important;
+    }
 }
 </style>
 """
