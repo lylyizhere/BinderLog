@@ -356,14 +356,16 @@ button p {color:inherit !important}
     transform:translateY(-3px); border-color:var(--line-strong);
     box-shadow:var(--card-shadow-hover);
 }
+[class*="st-key-card_"] [data-testid="stMarkdownContainer"] {margin:0 !important}
 [class*="st-key-card_"] [data-testid="stMarkdownContainer"] p {margin:0}
 [class*="st-key-card_"] [data-testid="stHorizontalBlock"] {
     display:grid !important;
-    grid-template-columns:30px minmax(0,1fr) 30px 32px;
-    align-items:center; justify-content:space-between; gap:2px; padding:0 6px
+    grid-template-columns:30px minmax(0,1fr) 30px 36px;
+    align-items:center; gap:4px; padding:0 8px
 }
 [class*="st-key-card_"] [data-testid="stColumn"] {
-    display:flex; align-items:center; justify-content:center; min-width:0; width:100%
+    display:flex; align-items:center; justify-content:center;
+    min-width:0; width:100%
 }
 [class*="st-key-card_"] .ring.sm {--s:32px}
 [class*="st-key-card_"] .ring.sm b {font-size:8px}
