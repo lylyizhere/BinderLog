@@ -1,0 +1,61 @@
+:root {
+        --brand: #29283B;
+        --gold: #7563CB;
+        --bg: #FFFFFF;
+        --bg-soft: #ECEAF7;
+        --panel: rgba(255, 255, 255, .94);
+        --panel-solid: #FFFFFF;
+        --panel-raised: #F0EFF9;
+        --line: #DFDDEC;
+        --line-strong: #C9C7DE;
+        --accent: #087F9C;
+        --accent-strong: #087F9C;
+        --accent-soft: #E3EAFE;
+        --text: #5F6078;
+        --heading: #29283B;
+        --muted: #5F6078;
+        --tabs-text: #5F6078;
+        --subtle: #74758B;
+        --page-glow-one: transparent;
+        --page-glow-two: transparent;
+        --page-glow-three: transparent;
+        --header-bg: rgba(245, 244, 251, .92);
+        --pill-bg: rgba(255, 255, 255, .90);
+        --hero-bg: linear-gradient(125deg, #FFFFFF, #E3EAFE);
+        --hero-title-gradient: linear-gradient(90deg, #29283B, #7563CB 72%);
+        --hero-sub: #5F6078;
+        --bar-track: rgba(41, 40, 59, .10);
+        --ring-track: rgba(41, 40, 59, .10);
+        --ring-center: #FFFFFF;
+        --ring-sm-center: #F0EFF9;
+        --tabs-bg: rgba(236, 234, 247, .94);
+        --tab-hover-bg: rgba(117, 99, 203, .10);
+        --tab-active-bg: linear-gradient(135deg, #7563CB, #4267C7);
+        --tab-active-color: #FFFFFF;
+        --button-secondary-bg: rgba(255, 255, 255, .92);
+        --button-primary-bg: linear-gradient(135deg, #4267C7, #3453A8);
+        --button-primary-text: #FFFFFF;
+        --input-bg: #FFFFFF;
+        --uploader-bg: rgba(255, 255, 255, .78);
+        --uploader-hover-bg: rgba(227, 234, 254, .92);
+        --alert-info-bg: rgba(8, 127, 156, .08);
+        --alert-success-bg: rgba(36, 143, 102, .09);
+        --alert-warning-bg: rgba(199, 107, 152, .10);
+        --alert-error-bg: rgba(199, 107, 152, .10);
+        --expander-bg: rgba(255, 255, 255, .82);
+        --collection-button-bg: rgba(255, 255, 255, .90);
+        --card-action-bg: rgba(117, 99, 203, .08);
+        --card-bg: linear-gradient(160deg, #FFFFFF, #F0EFF9);
+        --card-shadow: 0 10px 28px rgba(41, 40, 59, .08);
+        --card-shadow-hover: 0 16px 35px rgba(41, 40, 59, .14);
+        --photo-bg: #E9E8F7;
+        --badge-bg: rgba(41, 40, 59, .88);
+        --badge-border: rgba(255, 255, 255, .38);
+        color-scheme: light;
+    }
+
+    html, body, #root, .stApp, [data-testid="stAppViewContainer"],
+    [data-testid="stMain"] {
+        background-color: #FFFFFF !important;
+        background-image: none !important;
+    }
