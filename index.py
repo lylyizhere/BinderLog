@@ -1385,7 +1385,7 @@ button p {color:inherit !important}
     :root {
         --brand: #29283B;
         --gold: #7563CB;
-        --bg: #F5F4FB;
+        --bg: #FFFFFF;
         --bg-soft: #ECEAF7;
         --panel: rgba(255, 255, 255, .94);
         --panel-solid: #FFFFFF;
@@ -1400,9 +1400,9 @@ button p {color:inherit !important}
         --muted: #5F6078;
         --tabs-text: #5F6078;
         --subtle: #74758B;
-        --page-glow-one: rgba(117, 99, 203, .12);
-        --page-glow-two: rgba(8, 127, 156, .08);
-        --page-glow-three: rgba(199, 107, 152, .06);
+        --page-glow-one: transparent;
+        --page-glow-two: transparent;
+        --page-glow-three: transparent;
         --header-bg: rgba(245, 244, 251, .92);
         --pill-bg: rgba(255, 255, 255, .90);
         --hero-bg: linear-gradient(125deg, #FFFFFF, #E3EAFE);
