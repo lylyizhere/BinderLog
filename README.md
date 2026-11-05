@@ -19,14 +19,6 @@ Acompanhe o progresso da sua coleção de cards de K-pop nos bots do Discord **G
 
 Nas linhas **SOLO**, o idol é tratado como solista. Um idol indicado como `-` no CSV vira **Grupo completo**, para quando você coleciona o grupo todo.
 
-## Aparência (tema claro e escuro)
-
-O BinderLog tem duas paletas completas — a escura (*Midnight Holo*) e a clara (*Lavender Archive*) — e o layout se ajusta sozinho em telas pequenas: os cards ficam em duas colunas, o cabeçalho passa para duas linhas, as abas rolam na horizontal e a tela de login continua centralizada.
-
-Para trocar de tema use o seletor do cabeçalho (**🖥️ Auto**, **☀️ Claro** ou **🌙 Escuro**) — *Auto* segue o tema do sistema. A escolha fica guardada no navegador e vale para a página inteira: o CSS do BinderLog e os componentes nativos do Streamlit (tabelas, menus, diálogos e uploads) mudam juntos. As cores nativas vêm de `.streamlit/config.toml`, alinhadas às paletas definidas em `index.py`.
-
-O seletor é um atalho para o próprio tema do Streamlit: ele grava a escolha na mesma chave que o menu nativo usa (`stActiveTheme-<rota>-v2`, no `localStorage`) e recarrega a página quando o modo muda, porque o Streamlit lê o tema guardado apenas ao carregar. O cookie `binderlog_tema` guarda a seleção para o app reencontrá-la na sessão seguinte e para o botão mostrar o modo escolhido. O menu **⋮** → **Theme** faz exatamente a mesma troca e continua funcionando.
-
 ## Como rodar
 
 ### Requisitos
@@ -158,13 +150,11 @@ A busca e a extração de dados do KProfiles ficam em `kprofiles.py`, separadas 
 
 Ao abrir os detalhes de um card, o BinderLog apresenta a imagem ao lado do resumo e consulta o perfil correspondente no KProfiles. A busca considera o nome e o grupo do card e verifica se a apresentação do perfil confirma esse contexto. Se não confirmar, o perfil é descartado para evitar mostrar uma descrição possivelmente errada.
 
-Resumos antigos são atualizados ao abrir o card. Se a atualização falhar, o texto antigo não é mostrado. O resumo do grupo ou idol é apresentado em texto corrido, reunindo a apresentação e os fatos biográficos, a trajetória e outras informações relevantes encontradas na fonte.
+Resumos antigos são atualizados ao abrir o card. Se a atualização falhar, o texto antigo não é mostrado. Os resumos são organizados em parágrafos: apresentação, integrantes e estreia dos grupos; para idols, apresentação e fatos biográficos ou de carreira relevantes encontrados no perfil.
 
-Nos cards de grupo completo, a seção **Membros** apresenta cada integrante separadamente, com o nome em destaque. O resumo individual é carregado pelo botão de cada pessoa para evitar várias consultas ao abrir um card.
+Nos cards de grupo completo, os resumos dos integrantes são carregados individualmente pelo botão de cada pessoa, evitando muitas consultas ao abrir um card. O texto público do perfil é enviado ao serviço MyMemory para tradução para português brasileiro e salvo no banco. Os parágrafos são mantidos, e textos longos são enviados em trechos para respeitar o limite por consulta.
 
-O texto público do perfil é enviado ao serviço MyMemory e traduzido automaticamente para português brasileiro. A tradução é salva no banco. Textos longos são divididos em trechos para respeitar o limite do serviço, e trechos já traduzidos são reutilizados. Se o serviço responder com HTTP 429, novas traduções aguardam o prazo informado ou uma hora. Se a tradução falhar depois da busca do perfil, o texto original em inglês continua visível na sessão.
-
-A busca respeita o limitador e as pausas do KProfiles. Em caso de indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
+As traduções são espaçadas e trechos já traduzidos são reutilizados. Se o serviço responder com HTTP 429, novas traduções aguardam o prazo informado ou uma hora. Quando a tradução falha após a busca do perfil, o texto original em inglês continua visível na sessão. A busca respeita o limitador e as pausas do KProfiles; em caso de indisponibilidade, o app mostra um aviso e aguarda antes de tentar novamente.
 
 As fotos têm direitos autorais dos respectivos donos. O app só guarda o link para uso pessoal.
 
