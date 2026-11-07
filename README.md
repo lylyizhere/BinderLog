@@ -16,6 +16,7 @@ Acompanhe o progresso da sua coleção de cards de K-pop nos bots do Discord **G
 - Galeria com foto de cada idol, incluindo uma foto diferente para cada card do mesmo idol.
 - Exportação em CSV.
 - Login com Google e coleções separadas por conta.
+- Seletor de idioma com opções em português, inglês e espanhol.
 
 Nas linhas **SOLO**, o idol é tratado como solista. Um idol indicado como `-` no CSV vira **Grupo completo**, para quando você coleciona o grupo todo.
 
