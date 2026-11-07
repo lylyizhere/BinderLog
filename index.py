@@ -2152,7 +2152,7 @@ with st.container(key="app_header"):
             "⋮",
             help=texto_navegacao("configuracoes_conta"),
             key="account_settings",
-            width="content",
+            width=340,
         ):
             st.markdown(
                 '<div class="account-menu__identity">'
