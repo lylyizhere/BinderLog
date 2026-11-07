@@ -2136,7 +2136,7 @@ if card_selecionado:
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
 with st.container(key="app_header"):
     c_tit, c_pill, c_btn, c_user = st.columns(
-        [4.2, 2.4, 2.4, 1.6], vertical_alignment="center"
+        [4.7, 2.4, 2.4, 1.1], vertical_alignment="center"
     )
     c_tit.markdown(
         '<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
