@@ -67,6 +67,11 @@ TRADUCOES_NAVEGACAO = {
         "English": "Connected account",
         "Español": "Cuenta conectada",
     },
+    "configuracoes_conta": {
+        "Português (Brasil)": "Configurações da conta",
+        "English": "Account settings",
+        "Español": "Configuración de la cuenta",
+    },
     "sair_conta": {
         "Português (Brasil)": "Sair da conta",
         "English": "Sign out",
@@ -886,8 +891,21 @@ def texto_sistema(chave, **valores):
 
 
 def seletor_idioma():
-    st.selectbox(
-        texto_navegacao("label_idioma"), IDIOMAS, key="idioma_interface"
+    st.session_state.setdefault("idioma_interface", IDIOMAS[0])
+    nomes_idiomas = {
+        IDIOMAS[0]: "Português",
+        IDIOMAS[1]: "English",
+        IDIOMAS[2]: "Español",
+    }
+    st.segmented_control(
+        texto_navegacao("label_idioma"),
+        options=IDIOMAS,
+        format_func=nomes_idiomas.get,
+        selection_mode="single",
+        key="idioma_interface",
+        label_visibility="collapsed",
+        width="stretch",
+        wrap=True,
     )
 
 
@@ -2130,10 +2148,21 @@ with st.container(key="app_header"):
     with c_user:
         c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
         c_foto.markdown(avatar_html, unsafe_allow_html=True)
-        with c_menu.popover("⋮", help=texto_navegacao("conta_conectada")):
+        with c_menu.popover(
+            "⚙",
+            help=texto_navegacao("configuracoes_conta"),
+            key="account_settings",
+            width="content",
+        ):
+            st.markdown(
+                '<div class="account-menu__identity">'
+                f'{avatar_html}<div><strong>{esc(nome_conta)}</strong>'
+                f'<span>{esc(email_conta)}</span></div></div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(texto_navegacao("label_idioma"))
             seletor_idioma()
-            st.markdown(f"**{esc(nome_conta)}**")
-            st.caption(email_conta)
+            st.divider()
             if st.button(
                 texto_navegacao("sair_conta"),
                 key="logout_button",
