@@ -959,16 +959,22 @@ def autenticar_usuario():
             """
             <style>
             .st-key-login_screen {
-                min-height: calc(100vh - 5rem);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
+                width: min(100% - 2rem, 480px);
+                margin: clamp(2rem, 10vh, 6rem) auto 2rem;
+                padding: 1.75rem;
+                box-sizing: border-box;
+                border: 1px solid var(--line-strong);
+                border-radius: 20px;
+                background: var(--panel);
+                box-shadow: 0 18px 50px rgba(0, 0, 0, .22);
                 text-align: center;
-                padding: 2rem 1rem;
             }
             .st-key-login_screen [data-testid="stMarkdownContainer"] {
                 text-align: center;
+            }
+            .st-key-login_screen [data-testid="stSegmentedControl"] {
+                width: 100%;
+                max-width: 100%;
             }
             .st-key-login_screen .login-title {
                 margin: 0 0 1rem;
@@ -988,6 +994,10 @@ def autenticar_usuario():
             .st-key-login_screen .stButton {
                 display: flex;
                 justify-content: center;
+            }
+            .st-key-login_screen .st-key-login_google,
+            .st-key-login_screen .st-key-como_usar_site {
+                margin-inline: auto;
             }
             .st-key-login_screen .st-key-login_google button {
                 min-height: 2.8rem;
@@ -1203,6 +1213,14 @@ def reivindicar_colecao_existente():
             (st.session_state["authenticated_user_sub"],),
         )
 
+
+# ---------------------------------------------------------------- Visual
+CSS_DIR = Path(__file__).resolve().parent / "css"
+app_css = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+st.markdown(
+    f"<style>{app_css}</style>",
+    unsafe_allow_html=True,
+)
 
 autenticar_usuario()
 init_db()
@@ -1591,16 +1609,6 @@ def ordenar(df, ordem):
         df["_p"] = df["prioridade"].map(ordem_p)
         df = df.sort_values(["_p", "_nome"])
     return df.drop(columns=[c for c in ["_nome", "_grupo", "_p"] if c in df.columns])
-
-
-# ---------------------------------------------------------------- Visual
-CSS_DIR = Path(__file__).resolve().parent / "css"
-app_css = (CSS_DIR / "app.css").read_text(encoding="utf-8")
-st.markdown(
-    f"<style>{app_css}</style>",
-    unsafe_allow_html=True,
-)
-
 
 
 def pct(parte, total):
