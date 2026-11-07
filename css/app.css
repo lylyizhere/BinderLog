@@ -93,6 +93,83 @@ a {color: var(--accent)}
 .ttl {display:flex; gap:14px; align-items:center; line-height:1.2}
 .ttl b {font-size:23px; letter-spacing:-.04em; color:var(--heading)}
 .ttl .mut {color:var(--muted); font-size:12px; letter-spacing:.02em}
+.st-key-app_header [data-testid="stPopover"] > button {
+    width:42px;
+    height:42px;
+    padding:0;
+    border:1px solid var(--line-strong);
+    border-radius:14px;
+    background:var(--panel-raised);
+    color:var(--text);
+    font-size:19px;
+    transition:background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.st-key-app_header [data-testid="stPopover"] > button:hover {
+    border-color:var(--accent);
+    background:var(--accent-soft);
+    color:var(--accent);
+    transform:translateY(-1px);
+}
+.account-menu__identity {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:4px 2px 14px;
+}
+.account-menu__identity img,
+.account-menu__identity > div:first-child {
+    flex:0 0 42px;
+    width:42px;
+    height:42px;
+    border-radius:50%;
+}
+.account-menu__identity > div:last-child {
+    display:flex;
+    min-width:0;
+    flex-direction:column;
+    gap:3px;
+}
+.account-menu__identity strong {
+    overflow:hidden;
+    color:var(--heading);
+    font-size:14px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.account-menu__identity span {
+    overflow:hidden;
+    color:var(--muted);
+    font-size:12px;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+[data-testid="stPopoverBody"] [data-testid="stSegmentedControl"] {
+    width:100%;
+}
+[data-testid="stPopoverBody"] [data-testid="stSegmentedControl"] [role="radiogroup"] {
+    width:100%;
+    gap:4px;
+}
+[data-testid="stPopoverBody"] [data-testid="stSegmentedControl"] label {
+    flex:1 1 0;
+    justify-content:center;
+    border-radius:9px;
+}
+[data-testid="stPopoverBody"] [data-testid="stSegmentedControl"] label p {
+    font-size:12px;
+    white-space:nowrap;
+}
+[data-testid="stPopoverBody"] .st-key-logout_button button {
+    min-height:40px;
+    border:1px solid var(--alert-error-bg);
+    border-radius:11px;
+    color:var(--text);
+}
+[data-testid="stPopoverBody"] .st-key-logout_button button:hover {
+    border-color:var(--alert-error-bg);
+    background:var(--alert-error-bg);
+    color:var(--heading);
+}
 .logo {
     display:grid; place-items:center; width:48px; height:48px; border-radius:16px;
     background:linear-gradient(145deg,#42D9F5,#102A43 72%);
@@ -244,6 +321,7 @@ button p {color:inherit !important}
 }
 
 [data-testid="stPopoverBody"] {
+    min-width:min(300px, calc(100vw - 2rem));
     border:1px solid var(--line-strong) !important;
     border-radius:14px !important;
     background:var(--panel-solid) !important;
