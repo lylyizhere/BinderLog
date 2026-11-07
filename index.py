@@ -21,6 +21,7 @@ from kprofiles import (
     buscar_integrantes_kprofiles,
     buscar_perfil_kprofiles,
     nome_aparece_em_texto,
+    traduzir_descricao,
     traduzir_descricao_ptbr,
 )
 
@@ -29,6 +30,704 @@ PRIORIDADES = ["Alta", "Média", "Baixa"]
 CATEGORIAS = ["Grupo", "Solo", "Outro"]
 GRUPO_COMPLETO = "Grupo completo"  # idol "-" no CSV: coleciona o grupo todo
 VERSAO_DESCRICAO = 8
+IDIOMAS = ("Português (Brasil)", "English", "Español")
+TRADUCOES_NAVEGACAO = {
+    "label_idioma": {
+        "Português (Brasil)": "Idioma",
+        "English": "Language",
+        "Español": "Idioma",
+    },
+    "colecao_bots_discord": {
+        "Português (Brasil)": "Coleção de bots do Discord",
+        "English": "Discord bot collection",
+        "Español": "Colección de bots de Discord",
+    },
+    "colecao_completa": {
+        "Português (Brasil)": "Coleção completa",
+        "English": "Collection progress",
+        "Español": "Progreso de la colección",
+    },
+    "adicionar_idol_bot": {
+        "Português (Brasil)": "＋  Adicionar idol / bot",
+        "English": "＋  Add idol / bot",
+        "Español": "＋  Añadir ídolo / bot",
+    },
+    "foto_perfil": {
+        "Português (Brasil)": "Foto do perfil",
+        "English": "Profile picture",
+        "Español": "Foto de perfil",
+    },
+    "foto_perfil_indisponivel": {
+        "Português (Brasil)": "Foto do perfil indisponível",
+        "English": "Profile picture unavailable",
+        "Español": "Foto de perfil no disponible",
+    },
+    "conta_conectada": {
+        "Português (Brasil)": "Conta conectada",
+        "English": "Connected account",
+        "Español": "Cuenta conectada",
+    },
+    "sair_conta": {
+        "Português (Brasil)": "Sair da conta",
+        "English": "Sign out",
+        "Español": "Cerrar sesión",
+    },
+    "aba_painel": {
+        "Português (Brasil)": "Painel",
+        "English": "Dashboard",
+        "Español": "Panel",
+    },
+    "aba_tabela": {
+        "Português (Brasil)": "Tabela",
+        "English": "Table",
+        "Español": "Tabla",
+    },
+    "aba_fotos": {
+        "Português (Brasil)": "Fotos",
+        "English": "Photos",
+        "Español": "Fotos",
+    },
+    "aba_importar_csv": {
+        "Português (Brasil)": "Importar CSV",
+        "English": "Import CSV",
+        "Español": "Importar CSV",
+    },
+    "painel_vazio": {
+        "Português (Brasil)": "Nada por aqui ainda. Use **Importar CSV** ou o botão **Adicionar idol / bot**.",
+        "English": "Nothing here yet. Use **Import CSV** or the **Add idol / bot** button.",
+        "Español": "Todavía no hay nada aquí. Usa **Importar CSV** o el botón **Añadir ídolo / bot**.",
+    },
+    "progresso_geral": {
+        "Português (Brasil)": "PROGRESSO GERAL",
+        "English": "OVERALL PROGRESS",
+        "Español": "PROGRESO GENERAL",
+    },
+    "cartas_coletadas": {
+        "Português (Brasil)": "{possuidas} de {total} cartas coletadas",
+        "English": "{possuidas} of {total} cards collected",
+        "Español": "{possuidas} de {total} cartas reunidas",
+    },
+    "colecoes_avancadas": {
+        "Português (Brasil)": "Coleções mais avançadas por bot",
+        "English": "Most complete collections by bot",
+        "Español": "Colecciones más completas por bot",
+    },
+    "cartas": {
+        "Português (Brasil)": "cartas",
+        "English": "cards",
+        "Español": "cartas",
+    },
+    "bots": {
+        "Português (Brasil)": "BOTS",
+        "English": "BOTS",
+        "Español": "BOTS",
+    },
+    "todos": {
+        "Português (Brasil)": "Todos",
+        "English": "All",
+        "Español": "Todos",
+    },
+    "idols_contagem": {
+        "Português (Brasil)": "{quantidade} idols",
+        "English": "{quantidade} idols",
+        "Español": "{quantidade} ídolos",
+    },
+    "progresso": {
+        "Português (Brasil)": "Progresso",
+        "English": "Progress",
+        "Español": "Progreso",
+    },
+    "buscar": {
+        "Português (Brasil)": "Buscar",
+        "English": "Search",
+        "Español": "Buscar",
+    },
+    "buscar_idol_grupo": {
+        "Português (Brasil)": "Buscar idol ou grupo",
+        "English": "Search idols or groups",
+        "Español": "Buscar ídolos o grupos",
+    },
+    "ordenar": {
+        "Português (Brasil)": "Ordenar",
+        "English": "Sort",
+        "Español": "Ordenar",
+    },
+    "prioridade": {
+        "Português (Brasil)": "Prioridade",
+        "English": "Priority",
+        "Español": "Prioridad",
+    },
+    "todas_colecoes": {
+        "Português (Brasil)": "Todas as coleções",
+        "English": "All collections",
+        "Español": "Todas las colecciones",
+    },
+    "abrir_detalhes": {
+        "Português (Brasil)": "Abrir detalhes de {nome}",
+        "English": "Open details for {nome}",
+        "Español": "Abrir los detalles de {nome}",
+    },
+    "mostrar_mais": {
+        "Português (Brasil)": "Mostrar mais ({quantidade} restantes)",
+        "English": "Show more ({quantidade} remaining)",
+        "Español": "Mostrar más ({quantidade} restantes)",
+    },
+    "ordens": {
+        "Português (Brasil)": {
+            "Idol (A–Z)": "Idol (A–Z)",
+            "Grupo (A–Z)": "Grupo (A–Z)",
+            "Menor progresso": "Menor progresso",
+            "Maior progresso": "Maior progresso",
+            "Mais cartas faltando": "Mais cartas faltando",
+            "Prioridade": "Prioridade",
+        },
+        "English": {
+            "Idol (A–Z)": "Idol (A–Z)",
+            "Grupo (A–Z)": "Group (A–Z)",
+            "Menor progresso": "Least progress",
+            "Maior progresso": "Most progress",
+            "Mais cartas faltando": "Most cards missing",
+            "Prioridade": "Priority",
+        },
+        "Español": {
+            "Idol (A–Z)": "Ídolo (A–Z)",
+            "Grupo (A–Z)": "Grupo (A–Z)",
+            "Menor progresso": "Menor progreso",
+            "Maior progresso": "Mayor progreso",
+            "Mais cartas faltando": "Más cartas pendientes",
+            "Prioridade": "Prioridad",
+        },
+    },
+    "prioridades": {
+        "Português (Brasil)": {"Alta": "Alta", "Média": "Média", "Baixa": "Baixa"},
+        "English": {"Alta": "High", "Média": "Medium", "Baixa": "Low"},
+        "Español": {"Alta": "Alta", "Média": "Media", "Baixa": "Baja"},
+    },
+    "detalhe": {
+        "Português (Brasil)": {
+            "card_url_invalido": "O identificador do card na URL é inválido.",
+            "card_removido": "Este card não está mais na coleção.",
+            "voltar_painel": "← Voltar ao painel",
+            "bot": "Bot",
+            "buscando_traduzindo": "Buscando no KProfiles e traduzindo para português...",
+            "traducao_pausada": "A tradução está temporariamente pausada por limite de solicitações. Tente novamente mais tarde.",
+            "kprofiles_pausado": "O KProfiles limitou as consultas temporariamente. Tente novamente mais tarde.",
+            "descricao_indisponivel": "Não foi possível carregar a descrição: {erro}",
+            "foto_card": "Foto do card",
+            "sem_foto_card": "Ainda não há uma imagem para este card.",
+            "sobre": "Sobre",
+            "fonte_original_ingles": "texto original em inglês",
+            "traducao_automatica": "tradução automática",
+            "falha_traduzir_resumo": "Não foi possível traduzir o resumo para o idioma selecionado: {erro}",
+            "resumo_indisponivel": "O perfil ainda não tem um resumo disponível.",
+            "membros": "Membros",
+            "verificando_membros": "Conferindo os integrantes de {grupo} no KProfiles...",
+            "membros_indisponiveis": "Não foi possível verificar os integrantes no KProfiles: {erro}",
+            "tentar_novamente": "Tentar buscar novamente",
+            "fonte_conferida": "Fonte conferida",
+            "blocos_membros_indisponiveis": "Os blocos dos integrantes aparecerão quando a lista for encontrada.",
+            "membros_adicionais": "Há integrantes salvos que não aparecem na lista atual do KProfiles. Eles e seus dados foram mantidos.",
+            "carregar_resumo": "Carregar resumo de {membro}",
+            "carregando_resumo": "Carregando resumo de {membro}...",
+            "resumo_membro_indisponivel": "Resumo de {membro} indisponível: {erro}",
+            "resumo_temporariamente_indisponivel": "Resumo de {membro} temporariamente indisponível. Tente novamente mais tarde.",
+            "registros_antigos": "Registros antigos sem integrante",
+            "registros_anteriores": "Estes registros foram adicionados antes da divisão por membro.",
+            "resumo": "Resumo",
+            "eras": "Eras",
+            "eventos": "Eventos",
+            "marcadores": "marcadores",
+            "nome_era": "Nome da era",
+            "sigla_era": "Sigla da era",
+            "diamantes_era": "Diamantes da era",
+            "adicionar_era": "Adicionar era",
+            "nome_sigla_era_obrigatorios": "Informe o nome e a sigla da era.",
+            "nenhuma_era": "Nenhuma era adicionada ainda.",
+            "nome_evento": "Nome do evento",
+            "sigla_gerada": "Sigla gerada: {sigla}",
+            "marcadores_happy_birthday": "Marcadores do Happy Birthday",
+            "um_marcador": "Este evento usa 1 marcador.",
+            "nome_evento_obrigatorio": "Informe o nome do evento.",
+            "adicionar_evento": "Adicionar evento",
+            "nenhum_evento": "Nenhum evento adicionado ainda.",
+            "marcadores_evento": "Marcadores: {quantidade}",
+            "eras_contagem": "{quantidade} eras",
+            "eventos_contagem": "{quantidade} eventos",
+            "diamantes_contagem": "{quantidade} 💎",
+            "resumo_registros": "{eras} · {diamantes} · {eventos} · {marcadores} {rotulo_marcadores}",
+        },
+        "English": {
+            "card_url_invalido": "The card ID in the URL is invalid.",
+            "card_removido": "This card is no longer in the collection.",
+            "voltar_painel": "← Back to dashboard",
+            "bot": "Bot",
+            "buscando_traduzindo": "Checking KProfiles and translating the profile into Portuguese...",
+            "traducao_pausada": "Translation is temporarily paused because the service rate limit was reached. Please try again later.",
+            "kprofiles_pausado": "KProfiles has temporarily rate-limited requests. Please try again later.",
+            "descricao_indisponivel": "Could not load the profile: {erro}",
+            "foto_card": "Card image",
+            "sem_foto_card": "There is no image for this card yet.",
+            "sobre": "About",
+            "fonte_original_ingles": "original English text",
+            "traducao_automatica": "automatically translated",
+            "falha_traduzir_resumo": "Could not translate the summary into the selected language: {erro}",
+            "resumo_indisponivel": "No profile summary is available yet.",
+            "membros": "Members",
+            "verificando_membros": "Checking the KProfiles member list for {grupo}...",
+            "membros_indisponiveis": "Could not verify the members on KProfiles: {erro}",
+            "tentar_novamente": "Try again",
+            "fonte_conferida": "Source checked",
+            "blocos_membros_indisponiveis": "Member sections will appear when the list is available.",
+            "membros_adicionais": "Some saved members are not on the current KProfiles list. Their entries and data have been kept.",
+            "carregar_resumo": "Load {membro}'s profile summary",
+            "carregando_resumo": "Loading {membro}'s profile summary...",
+            "resumo_membro_indisponivel": "Could not load {membro}'s profile summary: {erro}",
+            "resumo_temporariamente_indisponivel": "{membro}'s profile summary is temporarily unavailable. Please try again later.",
+            "registros_antigos": "Older entries without a member",
+            "registros_anteriores": "These entries were added before records were separated by member.",
+            "resumo": "Summary",
+            "eras": "Eras",
+            "eventos": "Events",
+            "marcadores": "markers",
+            "nome_era": "Era name",
+            "sigla_era": "Era abbreviation",
+            "diamantes_era": "Era diamonds",
+            "adicionar_era": "Add era",
+            "nome_sigla_era_obrigatorios": "Enter both the era name and abbreviation.",
+            "nenhuma_era": "No eras added yet.",
+            "nome_evento": "Event name",
+            "sigla_gerada": "Generated abbreviation: {sigla}",
+            "marcadores_happy_birthday": "Happy Birthday markers",
+            "um_marcador": "This event uses 1 marker.",
+            "nome_evento_obrigatorio": "Enter an event name.",
+            "adicionar_evento": "Add event",
+            "nenhum_evento": "No events added yet.",
+            "marcadores_evento": "Markers: {quantidade}",
+            "eras_contagem": "{quantidade} eras",
+            "eventos_contagem": "{quantidade} events",
+            "diamantes_contagem": "{quantidade} 💎",
+            "resumo_registros": "{eras} · {diamantes} · {eventos} · {marcadores} {rotulo_marcadores}",
+        },
+        "Español": {
+            "card_url_invalido": "El identificador de la tarjeta en la URL no es válido.",
+            "card_removido": "Esta tarjeta ya no está en la colección.",
+            "voltar_painel": "← Volver al panel",
+            "bot": "Bot",
+            "buscando_traduzindo": "Consultando KProfiles y traduciendo el perfil al portugués...",
+            "traducao_pausada": "La traducción está pausada temporalmente porque se alcanzó el límite de solicitudes. Inténtalo de nuevo más tarde.",
+            "kprofiles_pausado": "KProfiles ha limitado temporalmente las consultas. Inténtalo de nuevo más tarde.",
+            "descricao_indisponivel": "No se pudo cargar la descripción: {erro}",
+            "foto_card": "Imagen de la tarjeta",
+            "sem_foto_card": "Esta tarjeta aún no tiene imagen.",
+            "sobre": "Acerca de",
+            "fonte_original_ingles": "texto original en inglés",
+            "traducao_automatica": "traducción automática",
+            "falha_traduzir_resumo": "No se pudo traducir el resumen al idioma seleccionado: {erro}",
+            "resumo_indisponivel": "El perfil aún no tiene un resumen disponible.",
+            "membros": "Integrantes",
+            "verificando_membros": "Comprobando los integrantes de {grupo} en KProfiles...",
+            "membros_indisponiveis": "No se pudieron comprobar los integrantes en KProfiles: {erro}",
+            "tentar_novamente": "Volver a intentarlo",
+            "fonte_conferida": "Fuente consultada",
+            "blocos_membros_indisponiveis": "Las secciones de los integrantes aparecerán cuando se encuentre la lista.",
+            "membros_adicionais": "Hay integrantes guardados que no aparecen en la lista actual de KProfiles. Se conservaron sus registros y datos.",
+            "carregar_resumo": "Cargar el resumen del perfil de {membro}",
+            "carregando_resumo": "Cargando el resumen del perfil de {membro}...",
+            "resumo_membro_indisponivel": "No se pudo cargar el resumen del perfil de {membro}: {erro}",
+            "resumo_temporariamente_indisponivel": "El resumen del perfil de {membro} no está disponible temporalmente. Inténtalo de nuevo más tarde.",
+            "registros_antigos": "Registros anteriores sin integrante",
+            "registros_anteriores": "Estos registros se añadieron antes de separar los datos por integrante.",
+            "resumo": "Resumen",
+            "eras": "Eras",
+            "eventos": "Eventos",
+            "marcadores": "marcadores",
+            "nome_era": "Nombre de la era",
+            "sigla_era": "Abreviatura de la era",
+            "diamantes_era": "Diamantes de la era",
+            "adicionar_era": "Añadir era",
+            "nome_sigla_era_obrigatorios": "Escribe el nombre y la abreviatura de la era.",
+            "nenhuma_era": "Todavía no se ha añadido ninguna era.",
+            "nome_evento": "Nombre del evento",
+            "sigla_gerada": "Abreviatura generada: {sigla}",
+            "marcadores_happy_birthday": "Marcadores de Happy Birthday",
+            "um_marcador": "Este evento usa 1 marcador.",
+            "nome_evento_obrigatorio": "Escribe el nombre del evento.",
+            "adicionar_evento": "Añadir evento",
+            "nenhum_evento": "Todavía no se ha añadido ningún evento.",
+            "marcadores_evento": "Marcadores: {quantidade}",
+            "eras_contagem": "{quantidade} eras",
+            "eventos_contagem": "{quantidade} eventos",
+            "diamantes_contagem": "{quantidade} 💎",
+            "resumo_registros": "{eras} · {diamantes} · {eventos} · {marcadores} {rotulo_marcadores}",
+        },
+    },
+    "autenticacao": {
+        "Português (Brasil)": {
+            "entrar_google": "Entrar com Google",
+            "login_copy": "Entre com sua conta Google para acessar sua coleção privada.",
+            "como_usar": "Como usar o site",
+            "titulo_ajuda": "Como usar o site",
+            "ajuda_intro": "O **BinderLog** ajuda você a acompanhar sua coleção de cards de K-pop: quais idols e grupos você coleciona, quantos cards já tem e quanto falta. Você também pode organizar eras, eventos e fotos.",
+            "ajuda_comecar": "Como começar",
+            "ajuda_passo_1": "Entre com sua conta Google.",
+            "ajuda_passo_2": "Cadastre seus idols manualmente pelo botão **Adicionar idol / bot**.",
+            "ajuda_passo_3": "Atualize a quantidade de cards e organize sua coleção nas abas do app.",
+            "ajuda_csv_sem_obrigacao": "Você não precisa criar nem ter um arquivo CSV para usar o BinderLog. O cadastro manual funciona normalmente.",
+            "ajuda_csv_titulo": "O que é um arquivo CSV?",
+            "ajuda_csv_explicacao": "CSV é um arquivo simples de tabela, parecido com uma planilha: cada linha contém um registro e as colunas guardam informações como grupo, idol e quantidade de cards. No BinderLog, a importação está disponível para os arquivos da Garam **Bancodedados** e **Priolist**.",
+            "ajuda_csv_importacao": "Se você já tem esses arquivos, entre no app, abra a aba **Importar CSV** e envie-os. Se não tem, basta cadastrar sua coleção manualmente.",
+            "identidade_google_invalida": "Não foi possível verificar sua identidade Google. Tente entrar novamente.",
+            "sair": "Sair",
+            "owner_email_ausente": "OWNER_EMAIL não está configurado. Defina o e-mail Google da conta proprietária da coleção nos segredos do Streamlit.",
+        },
+        "English": {
+            "entrar_google": "Sign in with Google",
+            "login_copy": "Sign in with your Google account to access your private collection.",
+            "como_usar": "How to use BinderLog",
+            "titulo_ajuda": "How to use BinderLog",
+            "ajuda_intro": "**BinderLog** helps you keep track of your K-pop photocards: the idols and groups you collect, how many cards you have, and how many you still need. You can also organize eras, events, and photos.",
+            "ajuda_comecar": "Getting started",
+            "ajuda_passo_1": "Sign in with your Google account.",
+            "ajuda_passo_2": "Add idols manually using the **Add idol / bot** button.",
+            "ajuda_passo_3": "Update your card counts and organize your collection in the app's tabs.",
+            "ajuda_csv_sem_obrigacao": "You don't need to create or have a CSV file to use BinderLog. You can manage your collection manually.",
+            "ajuda_csv_titulo": "What is a CSV file?",
+            "ajuda_csv_explicacao": "A CSV is a simple table file, similar to a spreadsheet: each row is a record, and columns hold details such as group, idol, and card count. BinderLog can import Garam's **Bancodedados** and **Priolist** files.",
+            "ajuda_csv_importacao": "If you already have these files, sign in, open the **Import CSV** tab, and upload them. Otherwise, you can simply add your collection manually.",
+            "identidade_google_invalida": "We couldn't verify your Google identity. Please sign in again.",
+            "sair": "Sign out",
+            "owner_email_ausente": "OWNER_EMAIL is not configured. Add the Google email address of the collection owner to Streamlit secrets.",
+        },
+        "Español": {
+            "entrar_google": "Iniciar sesión con Google",
+            "login_copy": "Inicia sesión con tu cuenta de Google para acceder a tu colección privada.",
+            "como_usar": "Cómo usar BinderLog",
+            "titulo_ajuda": "Cómo usar BinderLog",
+            "ajuda_intro": "**BinderLog** te ayuda a llevar el control de tus tarjetas de K-pop: los ídolos y grupos que coleccionas, cuántas tarjetas tienes y cuántas te faltan. También puedes organizar eras, eventos y fotos.",
+            "ajuda_comecar": "Cómo empezar",
+            "ajuda_passo_1": "Inicia sesión con tu cuenta de Google.",
+            "ajuda_passo_2": "Añade tus ídolos manualmente con el botón **Añadir ídolo / bot**.",
+            "ajuda_passo_3": "Actualiza la cantidad de tarjetas y organiza tu colección en las pestañas de la aplicación.",
+            "ajuda_csv_sem_obrigacao": "No necesitas crear ni tener un archivo CSV para usar BinderLog. Puedes gestionar tu colección manualmente.",
+            "ajuda_csv_titulo": "¿Qué es un archivo CSV?",
+            "ajuda_csv_explicacao": "Un CSV es un archivo de tabla sencillo, parecido a una hoja de cálculo: cada fila contiene un registro y las columnas guardan datos como el grupo, el ídolo y la cantidad de tarjetas. BinderLog permite importar los archivos **Bancodedados** y **Priolist** de Garam.",
+            "ajuda_csv_importacao": "Si ya tienes esos archivos, inicia sesión, abre la pestaña **Importar CSV** y súbelos. Si no, puedes añadir tu colección manualmente.",
+            "identidade_google_invalida": "No se pudo verificar tu identidad de Google. Vuelve a iniciar sesión.",
+            "sair": "Cerrar sesión",
+            "owner_email_ausente": "OWNER_EMAIL no está configurado. Añade a los secretos de Streamlit la dirección de Google de la cuenta propietaria de la colección.",
+        },
+    },
+    "cadastro": {
+        "Português (Brasil)": {
+            "titulo": "Adicionar idol / bot",
+            "idol_solista": "Idol / Solista",
+            "grupo_ou_solo": "Grupo (ou SOLO)",
+            "bot": "Bot",
+            "categoria": "Categoria",
+            "prioridade": "Prioridade",
+            "total_cartas": "Total de cartas",
+            "quantidade_possuo": "Quantas eu tenho",
+            "adicionar": "Adicionar",
+            "informe_nome": "Informe o nome.",
+            "possuo_maior_total": "Você não pode ter mais cartas do que o total.",
+            "ja_existe": "{idol} ({grupo}) já existe no bot {bot}. Edite na aba {aba}.",
+            "categorias": {"Grupo": "Grupo", "Solo": "Solo", "Outro": "Outro"},
+            "prioridades": {"Alta": "Alta", "Média": "Média", "Baixa": "Baixa"},
+        },
+        "English": {
+            "titulo": "Add idol / bot",
+            "idol_solista": "Idol / soloist",
+            "grupo_ou_solo": "Group (or SOLO)",
+            "bot": "Bot",
+            "categoria": "Category",
+            "prioridade": "Priority",
+            "total_cartas": "Total cards",
+            "quantidade_possuo": "Cards I have",
+            "adicionar": "Add",
+            "informe_nome": "Enter a name.",
+            "possuo_maior_total": "The number of cards you have cannot exceed the total.",
+            "ja_existe": "{idol} ({grupo}) already exists for bot {bot}. Edit it in the {aba} tab.",
+            "categorias": {"Grupo": "Group", "Solo": "Soloist", "Outro": "Other"},
+            "prioridades": {"Alta": "High", "Média": "Medium", "Baixa": "Low"},
+        },
+        "Español": {
+            "titulo": "Añadir ídolo / bot",
+            "idol_solista": "Ídolo / solista",
+            "grupo_ou_solo": "Grupo (o SOLO)",
+            "bot": "Bot",
+            "categoria": "Categoría",
+            "prioridade": "Prioridad",
+            "total_cartas": "Total de tarjetas",
+            "quantidade_possuo": "Tarjetas que tengo",
+            "adicionar": "Añadir",
+            "informe_nome": "Escribe un nombre.",
+            "possuo_maior_total": "No puedes tener más tarjetas que el total.",
+            "ja_existe": "{idol} ({grupo}) ya existe en el bot {bot}. Edítalo en la pestaña {aba}.",
+            "categorias": {"Grupo": "Grupo", "Solo": "Solista", "Outro": "Otro"},
+            "prioridades": {"Alta": "Alta", "Média": "Media", "Baixa": "Baja"},
+        },
+    },
+    "tabela": {
+        "Português (Brasil)": {
+            "vazio": "Nada por aqui ainda.",
+            "instrucoes": "Edite direto na tabela e clique em **Salvar alterações**. O total geral soma cada linha; cartas compartilhadas entre membros do mesmo grupo podem ser contadas mais de uma vez.",
+            "bot": "Bot",
+            "grupo": "Grupo",
+            "prioridade": "Prioridade",
+            "categoria": "Categoria",
+            "buscar_idol": "Buscar idol",
+            "ordenar_por": "Ordenar por",
+            "idol": "Idol",
+            "total": "Total",
+            "possuo": "Tenho",
+            "faltam": "Faltam",
+            "progresso": "Progresso",
+            "url_foto": "URL da foto",
+            "excluir": "Excluir",
+            "salvar": "💾 Salvar alterações",
+            "valores_negativos": "{idol} ({bot}): os valores não podem ser negativos.",
+            "possuo_maior_total": "{idol} ({bot}): 'Tenho' não pode ser maior que 'Total'.",
+            "duplicado": "{idol} ({grupo}) já existe no bot {bot}.",
+            "baixar_csv": "⬇️ Baixar CSV",
+            "colunas_exportadas": {
+                "bot": "Bot", "grupo": "Grupo", "idol": "Idol",
+                "categoria": "Categoria", "prioridade": "Prioridade",
+                "total": "Total", "possuo": "Tenho", "image_url": "URL da foto",
+                "descricao_pt": "Descrição (português)", "descricao_url": "URL da descrição",
+                "descricao_versao": "Versão da descrição",
+            },
+        },
+        "English": {
+            "vazio": "Nothing here yet.",
+            "instrucoes": "Edit the table directly, then click **Save changes**. The overall total adds up every row; cards shared by members of the same group may be counted more than once.",
+            "bot": "Bot",
+            "grupo": "Group",
+            "prioridade": "Priority",
+            "categoria": "Category",
+            "buscar_idol": "Search idols",
+            "ordenar_por": "Sort by",
+            "idol": "Idol",
+            "total": "Total",
+            "possuo": "Owned",
+            "faltam": "Remaining",
+            "progresso": "Progress",
+            "url_foto": "Image URL",
+            "excluir": "Delete",
+            "salvar": "💾 Save changes",
+            "valores_negativos": "{idol} ({bot}): values cannot be negative.",
+            "possuo_maior_total": "{idol} ({bot}): owned cards cannot exceed the total.",
+            "duplicado": "{idol} ({grupo}) already exists for bot {bot}.",
+            "baixar_csv": "⬇️ Download CSV",
+            "colunas_exportadas": {
+                "bot": "Bot", "grupo": "Group", "idol": "Idol",
+                "categoria": "Category", "prioridade": "Priority",
+                "total": "Total", "possuo": "Owned", "image_url": "Image URL",
+                "descricao_pt": "Description (Portuguese)", "descricao_url": "Description URL",
+                "descricao_versao": "Description version",
+            },
+        },
+        "Español": {
+            "vazio": "Todavía no hay nada aquí.",
+            "instrucoes": "Edita la tabla directamente y luego pulsa **Guardar cambios**. El total general suma todas las filas; las tarjetas compartidas entre integrantes de un mismo grupo pueden contarse más de una vez.",
+            "bot": "Bot",
+            "grupo": "Grupo",
+            "prioridade": "Prioridad",
+            "categoria": "Categoría",
+            "buscar_idol": "Buscar ídolos",
+            "ordenar_por": "Ordenar por",
+            "idol": "Ídolo",
+            "total": "Total",
+            "possuo": "Tengo",
+            "faltam": "Pendientes",
+            "progresso": "Progreso",
+            "url_foto": "URL de la imagen",
+            "excluir": "Eliminar",
+            "salvar": "💾 Guardar cambios",
+            "valores_negativos": "{idol} ({bot}): los valores no pueden ser negativos.",
+            "possuo_maior_total": "{idol} ({bot}): las tarjetas que tienes no pueden superar el total.",
+            "duplicado": "{idol} ({grupo}) ya existe en el bot {bot}.",
+            "baixar_csv": "⬇️ Descargar CSV",
+            "colunas_exportadas": {
+                "bot": "Bot", "grupo": "Grupo", "idol": "Ídolo",
+                "categoria": "Categoría", "prioridade": "Prioridad",
+                "total": "Total", "possuo": "Tengo", "image_url": "URL de la imagen",
+                "descricao_pt": "Descripción (portugués)", "descricao_url": "URL de la descripción",
+                "descricao_versao": "Versión de la descripción",
+            },
+        },
+    },
+    "fotos": {
+        "Português (Brasil)": {
+            "vazio": "Importe ou adicione idols primeiro.",
+            "descricao_busca": "As buscas usam KProfiles primeiro e kpopping.com como alternativa. Os resultados ficam em cache por até 24 horas.",
+            "kpopping_pausado": "O kpopping.com está temporariamente pausado após limitar uma busca. O KProfiles continua disponível.",
+            "buscar_lote": "Buscar fotos em lote",
+            "filtrar_bot": "Filtrar por bot (vazio = todos)",
+            "escolher_bots": "Escolha os bots",
+            "buscar_para": "Buscar fotos para",
+            "so_faltantes": "Só as que faltam",
+            "faltantes_repetidas": "Faltam + repetidas",
+            "todas_substituir": "Todas (substituir)",
+            "limite": "Limite por busca",
+            "buscar_contagem": "🔎 Buscar fotos ({quantidade} idols)",
+            "atualizadas": "{quantidade} fotos atualizadas.",
+            "lote_interrompido": "{erro} O restante da busca em lote foi interrompido.",
+            "sem_novas": "Sem foto nova: {itens}. Use o ajuste individual abaixo.",
+            "sem_foto_contagem": "{quantidade} sem foto",
+            "repetidas_contagem": "{quantidade} repetidas",
+            "ajuste_individual": "Ajustar foto individual",
+            "idol": "Idol",
+            "card_sem_foto": "Este card ainda não tem foto.",
+            "buscar_outra": "🔄 Buscar outra foto",
+            "outra_nao_encontrada": "Não achei outra foto. Cole uma URL abaixo.",
+            "url_direta": "URL direta da foto",
+            "salvar_url": "Salvar URL",
+        },
+        "English": {
+            "vazio": "Import or add idols first.",
+            "descricao_busca": "Photos are searched on KProfiles first, with kpopping.com as a backup. Results are cached for up to 24 hours.",
+            "kpopping_pausado": "kpopping.com is temporarily paused after rate-limiting a request. KProfiles is still available.",
+            "buscar_lote": "Search for photos in bulk",
+            "filtrar_bot": "Filter by bot (leave empty for all)",
+            "escolher_bots": "Choose bots",
+            "buscar_para": "Find photos for",
+            "so_faltantes": "Missing photos only",
+            "faltantes_repetidas": "Missing and duplicate photos",
+            "todas_substituir": "All photos (replace)",
+            "limite": "Maximum photos per search",
+            "buscar_contagem": "🔎 Search for photos ({quantidade} idols)",
+            "atualizadas": "Photos updated: {quantidade}.",
+            "lote_interrompido": "{erro} The rest of the bulk search was stopped.",
+            "sem_novas": "No new photo found for: {itens}. Use the individual photo controls below.",
+            "sem_foto_contagem": "{quantidade} without a photo",
+            "repetidas_contagem": "{quantidade} duplicates",
+            "ajuste_individual": "Update an individual photo",
+            "idol": "Idol",
+            "card_sem_foto": "This card does not have a photo yet.",
+            "buscar_outra": "🔄 Find another photo",
+            "outra_nao_encontrada": "Couldn't find another photo. Paste an image URL below.",
+            "url_direta": "Direct image URL",
+            "salvar_url": "Save URL",
+        },
+        "Español": {
+            "vazio": "Primero, importa o añade ídolos.",
+            "descricao_busca": "Primero se buscan fotos en KProfiles y, como alternativa, en kpopping.com. Los resultados se guardan en caché hasta 24 horas.",
+            "kpopping_pausado": "kpopping.com está en pausa temporalmente porque limitó una solicitud. KProfiles sigue disponible.",
+            "buscar_lote": "Buscar fotos en lote",
+            "filtrar_bot": "Filtrar por bot (vacío = todos)",
+            "escolher_bots": "Elige los bots",
+            "buscar_para": "Buscar fotos para",
+            "so_faltantes": "Solo las que faltan",
+            "faltantes_repetidas": "Faltantes y repetidas",
+            "todas_substituir": "Todas (reemplazar)",
+            "limite": "Límite de fotos por búsqueda",
+            "buscar_contagem": "🔎 Buscar fotos ({quantidade} ídolos)",
+            "atualizadas": "Fotos actualizadas: {quantidade}.",
+            "lote_interrompido": "{erro} Se detuvo el resto de la búsqueda en lote.",
+            "sem_novas": "No se encontró una foto nueva para: {itens}. Usa los controles individuales de abajo.",
+            "sem_foto_contagem": "{quantidade} sin foto",
+            "repetidas_contagem": "{quantidade} repetidas",
+            "ajuste_individual": "Cambiar una foto individual",
+            "idol": "Ídolo",
+            "card_sem_foto": "Esta tarjeta aún no tiene foto.",
+            "buscar_outra": "🔄 Buscar otra foto",
+            "outra_nao_encontrada": "No se encontró otra foto. Pega una URL de imagen abajo.",
+            "url_direta": "URL directa de la imagen",
+            "salvar_url": "Guardar URL",
+        },
+    },
+    "importacao": {
+        "Português (Brasil)": {
+            "titulo": "Importar coleção da Garam",
+            "descricao": "O arquivo Bancodedados é obrigatório e contém o total e a quantidade adquirida. Priolist é opcional e preenche prioridade e categoria. Idols já existentes serão atualizados.",
+            "bot": "Bot",
+            "bancodedados": "Bancodedados (.csv)",
+            "priolist": "Priolist (.csv) — opcional",
+            "previa": "Prévia da importação",
+            "linhas_prontas": "{quantidade} linhas prontas para importar",
+            "avisos_csv": "⚠️ {quantidade} aviso(s) na leitura do CSV",
+            "col_grupo": "Grupo",
+            "col_idol": "Idol",
+            "col_total": "Total",
+            "col_possuo": "Tenho",
+            "col_categoria": "Categoria",
+            "col_prioridade": "Prioridade",
+            "importar": "Importar CSV",
+            "importados": "{quantidade} linhas importadas para {bot}!",
+            "erro_colunas_banco": "O arquivo Bancodedados precisa conter estas colunas: {colunas}",
+            "erro_colunas_priolist": "A Priolist precisa conter: Group, Idol, Priority, Category",
+            "linha_invalida": "{grupo} / {idol}: quantidade vazia, inválida ou negativa — linha ignorada.",
+            "acima_total": "{grupo} / {idol}: a quantidade adquirida ({possuo}) excede o total ({total}) — ajustada para o total.",
+        },
+        "English": {
+            "titulo": "Import a collection from Garam",
+            "descricao": "The Bancodedados file is required and contains the total and owned card counts. Priolist is optional and supplies priority and category. Existing idols will be updated.",
+            "bot": "Bot",
+            "bancodedados": "Bancodedados (.csv)",
+            "priolist": "Priolist (.csv) — optional",
+            "previa": "Import preview",
+            "linhas_prontas": "{quantidade} rows ready to import",
+            "avisos_csv": "⚠️ {quantidade} CSV warning(s)",
+            "col_grupo": "Group",
+            "col_idol": "Idol",
+            "col_total": "Total",
+            "col_possuo": "Owned",
+            "col_categoria": "Category",
+            "col_prioridade": "Priority",
+            "importar": "Import CSV",
+            "importados": "Imported {quantidade} rows into {bot}!",
+            "erro_colunas_banco": "The Bancodedados file must contain these columns: {colunas}",
+            "erro_colunas_priolist": "Priolist must contain: Group, Idol, Priority, Category",
+            "linha_invalida": "{grupo} / {idol}: card count is missing, invalid, or negative; row skipped.",
+            "acima_total": "{grupo} / {idol}: owned count ({possuo}) exceeds the total ({total}); adjusted to the total.",
+        },
+        "Español": {
+            "titulo": "Importar una colección de Garam",
+            "descricao": "El archivo Bancodedados es obligatorio y contiene el total y la cantidad de tarjetas que tienes. Priolist es opcional y aporta la prioridad y la categoría. Se actualizarán los ídolos que ya existan.",
+            "bot": "Bot",
+            "bancodedados": "Bancodedados (.csv)",
+            "priolist": "Priolist (.csv) — opcional",
+            "previa": "Vista previa de la importación",
+            "linhas_prontas": "{quantidade} filas listas para importar",
+            "avisos_csv": "⚠️ {quantidade} aviso(s) en el CSV",
+            "col_grupo": "Grupo",
+            "col_idol": "Ídolo",
+            "col_total": "Total",
+            "col_possuo": "Tengo",
+            "col_categoria": "Categoría",
+            "col_prioridade": "Prioridad",
+            "importar": "Importar CSV",
+            "importados": "Se importaron {quantidade} filas a {bot}.",
+            "erro_colunas_banco": "El archivo Bancodedados debe contener estas columnas: {colunas}",
+            "erro_colunas_priolist": "Priolist debe contener: Group, Idol, Priority, Category",
+            "linha_invalida": "{grupo} / {idol}: la cantidad de tarjetas está vacía, no es válida o es negativa; se omitió la fila.",
+            "acima_total": "{grupo} / {idol}: la cantidad que tienes ({possuo}) supera el total ({total}); se ajustó al total.",
+        },
+    },
+    "sistema": {
+        "Português (Brasil)": {
+            "erro_secrets_sintaxe": "Erro de sintaxe no arquivo de segredos {arquivo}: {erro}",
+            "database_ausente": "DATABASE_URL não encontrada. Crie o arquivo indicado abaixo e adicione a URL de conexão do PostgreSQL.",
+            "arquivo_contexto": "Arquivo existe? {existe} · Pasta atual do terminal: {pasta}",
+            "login_necessario": "Entre com uma conta Google para conectar sua coleção.",
+            "role_insegura": "A conexão do banco usa uma conta que ignora as regras de privacidade do PostgreSQL. Configure DATABASE_URL com um usuário sem SUPERUSER e sem BYPASSRLS.",
+        },
+        "English": {
+            "erro_secrets_sintaxe": "Syntax error in secrets file {arquivo}: {erro}",
+            "database_ausente": "DATABASE_URL was not found. Create the file shown below and add the PostgreSQL connection URL.",
+            "arquivo_contexto": "File exists? {existe} · Current working directory: {pasta}",
+            "login_necessario": "Sign in with a Google account to connect to your collection.",
+            "role_insegura": "The database connection uses an account that can bypass PostgreSQL privacy policies. Set DATABASE_URL to a user without SUPERUSER or BYPASSRLS privileges.",
+        },
+        "Español": {
+            "erro_secrets_sintaxe": "Error de sintaxis en el archivo de secretos {arquivo}: {erro}",
+            "database_ausente": "No se encontró DATABASE_URL. Crea el archivo indicado abajo y añade la URL de conexión de PostgreSQL.",
+            "arquivo_contexto": "¿Existe el archivo? {existe} · Directorio actual de la terminal: {pasta}",
+            "login_necessario": "Inicia sesión con una cuenta de Google para conectar tu colección.",
+            "role_insegura": "La conexión a la base de datos usa una cuenta que puede omitir las políticas de privacidad de PostgreSQL. Configura DATABASE_URL con un usuario sin privilegios SUPERUSER ni BYPASSRLS.",
+        },
+    },
+}
 
 st.set_page_config(page_title="BinderLog", page_icon="💿", layout="wide")
 
@@ -54,7 +753,11 @@ def _secret(name):
     except FileNotFoundError:
         return None
     except tomllib.TOMLDecodeError as e:
-        st.error(f"Erro de sintaxe no {SECRETS_FILE}: {e}")
+        st.error(
+            texto_sistema(
+                "erro_secrets_sintaxe", arquivo=SECRETS_FILE, erro=e
+            )
+        )
         return None
 
 
@@ -71,7 +774,7 @@ def conn():
     user_email = st.session_state.get("authenticated_user_email")
     owner_email = st.session_state.get("owner_email")
     if not user_sub or not user_email or not owner_email:
-        st.error("Entre com uma conta Google para conectar sua coleção.")
+        st.error(texto_sistema("login_necessario"))
         st.stop()
     connection = psycopg2.connect(url)
     try:
@@ -90,11 +793,7 @@ def conn():
             bypasses_policies = cursor.fetchone()[0]
         if bypasses_policies:
             connection.close()
-            st.error(
-                "A conexão do banco usa uma conta que ignora as regras de privacidade "
-                "do PostgreSQL. Configure DATABASE_URL com um usuário sem SUPERUSER "
-                "e sem BYPASSRLS."
-            )
+            st.error(texto_sistema("role_insegura"))
             st.stop()
         return connection
     except Exception:
@@ -126,34 +825,88 @@ def run_many(sql, linhas):
                 cur.execute(_sql(sql), linha)
 
 
-@st.dialog("Como usar o site")
+def texto_navegacao(chave):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO[chave][idioma]
+
+
+def texto_painel(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO[chave][idioma].format(**valores)
+
+
+def texto_detalhe(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["detalhe"][idioma][chave].format(**valores)
+
+
+def descricao_para_idioma(texto, original_ingles=None):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    if idioma == IDIOMAS[0]:
+        if original_ingles:
+            return traduzir_descricao_ptbr(original_ingles), False
+        return texto, False
+    if idioma == "English":
+        if original_ingles:
+            return original_ingles, True
+        return traduzir_descricao(texto, "pt-BR|en"), False
+    if original_ingles:
+        return traduzir_descricao(original_ingles, "en|es"), False
+    return traduzir_descricao(texto, "pt-BR|es"), False
+
+
+def texto_autenticacao(chave):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["autenticacao"][idioma][chave]
+
+
+def texto_cadastro(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["cadastro"][idioma][chave].format(**valores)
+
+
+def texto_tabela(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["tabela"][idioma][chave].format(**valores)
+
+
+def texto_fotos(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["fotos"][idioma][chave].format(**valores)
+
+
+def texto_importacao(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["importacao"][idioma][chave].format(**valores)
+
+
+def texto_sistema(chave, **valores):
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    return TRADUCOES_NAVEGACAO["sistema"][idioma][chave].format(**valores)
+
+
+def seletor_idioma():
+    st.selectbox(
+        texto_navegacao("label_idioma"), IDIOMAS, key="idioma_interface"
+    )
+
+
 def mostrar_como_usar():
-    st.markdown(
-        "O **BinderLog** ajuda você a acompanhar sua coleção de cards de K-pop: "
-        "quais idols e grupos você coleciona, quantos cards já tem e quanto falta. "
-        "Você também pode organizar eras, eventos e fotos."
-    )
-    st.markdown("### Como começar")
-    st.markdown(
-        "1. Entre com sua conta Google.\n"
-        "2. Cadastre seus idols manualmente pelo botão **Adicionar idol / bot**.\n"
-        "3. Atualize a quantidade de cards e organize sua coleção nas abas do app."
-    )
-    st.info(
-        "Você não precisa criar nem ter um arquivo CSV para usar o BinderLog. "
-        "O cadastro manual funciona normalmente."
-    )
-    st.markdown("### O que é um arquivo CSV?")
-    st.markdown(
-        "CSV é um arquivo simples de tabela, parecido com uma planilha: cada linha "
-        "contém um registro e as colunas guardam informações como grupo, idol e "
-        "quantidade de cards. No BinderLog, a importação está disponível para os "
-        "arquivos da Garam **Bancodedados** e **Priolist**."
-    )
-    st.markdown(
-        "Se você já tem esses arquivos, entre no app, abra a aba **Importar CSV** "
-        "e envie-os. Se não tem, basta cadastrar sua coleção manualmente."
-    )
+    @st.dialog(texto_autenticacao("titulo_ajuda"))
+    def dialog_ajuda():
+        st.markdown(texto_autenticacao("ajuda_intro"))
+        st.markdown(f"### {texto_autenticacao('ajuda_comecar')}")
+        st.markdown(
+            f"1. {texto_autenticacao('ajuda_passo_1')}\n"
+            f"2. {texto_autenticacao('ajuda_passo_2')}\n"
+            f"3. {texto_autenticacao('ajuda_passo_3')}"
+        )
+        st.info(texto_autenticacao("ajuda_csv_sem_obrigacao"))
+        st.markdown(f"### {texto_autenticacao('ajuda_csv_titulo')}")
+        st.markdown(texto_autenticacao("ajuda_csv_explicacao"))
+        st.markdown(texto_autenticacao("ajuda_csv_importacao"))
+
+    dialog_ajuda()
 
 
 def autenticar_usuario():
@@ -207,34 +960,38 @@ def autenticar_usuario():
             unsafe_allow_html=True,
         )
         with st.container(key="login_screen"):
+            seletor_idioma()
             st.markdown(
                 '<h1 class="login-title">BinderLog</h1>'
-                '<p class="login-copy">Entre com sua conta Google para acessar '
-                'sua coleção privada.</p>',
+                f'<p class="login-copy">{esc(texto_autenticacao("login_copy"))}</p>',
                 unsafe_allow_html=True,
             )
             if st.button(
-                "Entrar com Google", type="primary", width="content", key="login_google"
+                texto_autenticacao("entrar_google"),
+                type="primary",
+                width="content",
+                key="login_google",
             ):
                 st.login()
-            if st.button("Como usar o site", width="content", key="como_usar_site"):
+            if st.button(
+                texto_autenticacao("como_usar"),
+                width="content",
+                key="como_usar_site",
+            ):
                 mostrar_como_usar()
         st.stop()
 
     email = str(st.user.get("email", "")).strip().casefold()
     user_sub = str(st.user.get("sub", "")).strip()
     if not email or not user_sub or st.user.get("email_verified") is not True:
-        st.error("Não foi possível verificar sua identidade Google. Tente entrar novamente.")
-        if st.button("Sair"):
+        st.error(texto_autenticacao("identidade_google_invalida"))
+        if st.button(texto_autenticacao("sair")):
             st.logout()
         st.stop()
 
     owner_email = str(_secret("OWNER_EMAIL") or "").strip().casefold()
     if not owner_email:
-        st.error(
-            "OWNER_EMAIL não está configurado. Defina o e-mail Google da conta "
-            "proprietária da coleção nos segredos do Streamlit."
-        )
+        st.error(texto_autenticacao("owner_email_ausente"))
         st.stop()
 
     st.session_state["authenticated_user_sub"] = user_sub
@@ -595,6 +1352,7 @@ def atualizar_descricao_card(card_id, idol, grupo):
         _termos_busca_imagem(tipo, base, grupo_busca),
         VERSAO_CACHE_PERFIL,
     )
+    guardar_descricao_original("card", card_id, perfil["descricao"], perfil["url"])
     try:
         traducao = traduzir_descricao_ptbr(perfil["descricao"])
     except (requests.RequestException, ValueError):
@@ -617,6 +1375,7 @@ def atualizar_descricao_membro(membro_id, nome, grupo):
         _termos_busca_imagem(tipo, base, grupo_busca),
         VERSAO_CACHE_PERFIL,
     )
+    guardar_descricao_original("membro", membro_id, perfil["descricao"], perfil["url"])
     try:
         traducao = traduzir_descricao_ptbr(perfil["descricao"])
     except (requests.RequestException, ValueError):
@@ -709,7 +1468,9 @@ def parse_garam(banco, prio=None):
     b.columns = [str(c).strip() for c in b.columns]
     obrig = ["Grupo", "Idol", "Quantidade Total", "Quantidade adquirida"]
     if not set(obrig) <= set(b.columns):
-        raise ValueError("O arquivo de banco de dados precisa ter as colunas: " + ", ".join(obrig))
+        raise ValueError(
+            texto_importacao("erro_colunas_banco", colunas=", ".join(obrig))
+        )
     b = b[obrig].dropna(subset=["Grupo", "Idol"]).copy()
     b["Grupo"] = b["Grupo"].map(_norm)
     b["Idol"] = b["Idol"].map(_norm)
@@ -721,11 +1482,20 @@ def parse_garam(banco, prio=None):
     invalido = (b["n_total"].isna() | b["n_possuo"].isna()
                 | (b["n_total"] < 0) | (b["n_possuo"] < 0))
     for r in b[invalido].itertuples():
-        avisos.append(f"{r.Grupo} / {r.Idol}: quantidade vazia, inválida ou negativa — linha ignorada.")
+        avisos.append(
+            texto_importacao("linha_invalida", grupo=r.Grupo, idol=r.Idol)
+        )
     b = b[~invalido].copy()
     for r in b[b["n_possuo"] > b["n_total"]].itertuples():
-        avisos.append(f"{r.Grupo} / {r.Idol}: 'adquirida' ({int(r.n_possuo)}) maior que o total "
-                      f"({int(r.n_total)}) — ajustada para o total.")
+        avisos.append(
+            texto_importacao(
+                "acima_total",
+                grupo=r.Grupo,
+                idol=r.Idol,
+                possuo=int(r.n_possuo),
+                total=int(r.n_total),
+            )
+        )
     b["k"] = (b["Grupo"] + "|" + b["Idol"]).str.casefold()
 
     out = pd.DataFrame({
@@ -750,7 +1520,7 @@ def parse_garam(banco, prio=None):
             out["prioridade"] = out["k"].map(pr).fillna(out["prioridade"])
             out["categoria"] = out["k"].map(ca).fillna(out["categoria"])
         else:
-            raise ValueError("A Priolist precisa ter: Group, Idol, Priority, Category")
+            raise ValueError(texto_importacao("erro_colunas_priolist"))
 
     out["possuo"] = out[["possuo", "total"]].min(axis=1)
     return out.drop(columns="k").reset_index(drop=True), avisos
@@ -841,7 +1611,7 @@ def adicionar_evento(card_id, membro_id=None):
     nome = st.session_state.get(chave_nome, "").strip()
     chave_erro = f"{prefixo}_erro"
     if not nome:
-        st.session_state[chave_erro] = "Informe o nome do evento."
+        st.session_state[chave_erro] = "nome_evento_obrigatorio"
         return
 
     marcador = 1
@@ -865,8 +1635,14 @@ def renderizar_eras_eventos(card_id, membro_id=None, nome_membro=None):
                 f"WHERE colecao_id=? {filtro_membro} ORDER BY id", parametros)
     total_diamantes = sum(int(era.diamantes) for era in eras.itertuples())
     total_marcadores = sum(int(evento.marcadores) for evento in eventos.itertuples())
-    resumo = (f"{len(eras)} eras · {total_diamantes} 💎 · "
-              f"{len(eventos)} eventos · {total_marcadores} marcadores")
+    resumo = texto_detalhe(
+        "resumo_registros",
+        eras=texto_detalhe("eras_contagem", quantidade=len(eras)),
+        diamantes=texto_detalhe("diamantes_contagem", quantidade=total_diamantes),
+        eventos=texto_detalhe("eventos_contagem", quantidade=len(eventos)),
+        marcadores=total_marcadores,
+        rotulo_marcadores=texto_detalhe("marcadores"),
+    )
     titulo = f"👤 {nome_membro} · {resumo}" if nome_membro else resumo
 
     if nome_membro:
@@ -877,21 +1653,24 @@ def renderizar_eras_eventos(card_id, membro_id=None, nome_membro=None):
 
 
 def _renderizar_formularios_card(card_id, membro_id, sufixo, eras, eventos, resumo):
-    st.caption(f"Resumo: {resumo}")
+    st.caption(f"{texto_detalhe('resumo')}: {resumo}")
     col_eras, col_eventos = st.columns(2, gap="large")
     with col_eras:
-        st.subheader("Eras")
+        st.subheader(texto_detalhe("eras"))
         with st.form(f"form_era_{card_id}_{sufixo}", clear_on_submit=True):
-            nome_era = st.text_input("Nome da era")
-            sigla_era = st.text_input("Sigla da era")
+            nome_era = st.text_input(texto_detalhe("nome_era"))
+            sigla_era = st.text_input(texto_detalhe("sigla_era"))
             diamantes_era = st.selectbox(
-                "Diamantes da era", [1, 2, 3], format_func=lambda n: "💎" * n,
+                texto_detalhe("diamantes_era"), [1, 2, 3],
+                format_func=lambda n: "💎" * n,
                 key=f"diamantes_era_{card_id}_{sufixo}",
             )
-            enviar_era = st.form_submit_button("Adicionar era", type="primary")
+            enviar_era = st.form_submit_button(
+                texto_detalhe("adicionar_era"), type="primary"
+            )
         if enviar_era:
             if not nome_era.strip() or not sigla_era.strip():
-                st.error("Informe o nome e a sigla da era.")
+                st.error(texto_detalhe("nome_sigla_era_obrigatorios"))
             else:
                 run("INSERT INTO colecao_eras "
                     "(colecao_id, membro_id, nome, sigla, diamantes) VALUES (?,?,?,?,?)",
@@ -900,67 +1679,104 @@ def _renderizar_formularios_card(card_id, membro_id, sufixo, eras, eventos, resu
                 st.rerun()
 
         if eras.empty:
-            st.info("Nenhuma era adicionada ainda.")
+            st.info(texto_detalhe("nenhuma_era"))
         else:
             for era in eras.itertuples():
                 diamantes = "💎" * int(era.diamantes)
                 st.markdown(f"**{esc(era.nome)}** · `{esc(era.sigla)}` · {diamantes}")
 
     with col_eventos:
-        st.subheader("Eventos")
+        st.subheader(texto_detalhe("eventos"))
         chave_membro = membro_id if membro_id is not None else "card"
         prefixo_evento = f"evento_{card_id}_{chave_membro}"
         chave_nome_evento = f"{prefixo_evento}_nome"
-        nome_evento = st.text_input("Nome do evento", key=chave_nome_evento)
+        nome_evento = st.text_input(
+            texto_detalhe("nome_evento"), key=chave_nome_evento
+        )
         sigla_gerada = sigla_evento(nome_evento)
-        st.caption(f"Sigla gerada: {sigla_gerada or '—'}")
+        st.caption(texto_detalhe("sigla_gerada", sigla=sigla_gerada or "—"))
         chave_marcadores = f"{prefixo_evento}_marcadores"
         if eh_happy_birthday(nome_evento):
-            st.selectbox("Marcadores do Happy Birthday", [1, 2], key=chave_marcadores)
+            st.selectbox(
+                texto_detalhe("marcadores_happy_birthday"),
+                [1, 2],
+                key=chave_marcadores,
+            )
         else:
-            st.caption("Este evento usa 1 marcador.")
+            st.caption(texto_detalhe("um_marcador"))
         chave_erro = f"{prefixo_evento}_erro"
         if st.session_state.get(chave_erro):
-            st.error(st.session_state[chave_erro])
-        st.button("Adicionar evento", key=f"adicionar_{prefixo_evento}",
-                  type="primary", on_click=adicionar_evento,
-                  args=(int(card_id), membro_id))
+            st.error(texto_detalhe(st.session_state[chave_erro]))
+        st.button(
+            texto_detalhe("adicionar_evento"),
+            key=f"adicionar_{prefixo_evento}",
+            type="primary",
+            on_click=adicionar_evento,
+            args=(int(card_id), membro_id),
+        )
 
         if eventos.empty:
-            st.info("Nenhum evento adicionado ainda.")
+            st.info(texto_detalhe("nenhum_evento"))
         else:
             for evento in eventos.itertuples():
                 st.markdown(
                     f"{icone_evento(evento.nome)} **{esc(evento.nome)}** · "
-                    f"`{esc(evento.sigla)}` · Marcadores: {int(evento.marcadores)}"
+                    f"`{esc(evento.sigla)}` · "
+                    f"{texto_detalhe('marcadores_evento', quantidade=int(evento.marcadores))}"
                 )
 
 
-@st.dialog("Adicionar idol / bot")
 def dialog_adicionar():
-    with st.form("novo", clear_on_submit=True):
-        idol = st.text_input("Idol / Solista")
-        grupo = st.text_input("Grupo (ou SOLO)")
-        bot = st.selectbox("Bot", BOTS)
-        c4, c5 = st.columns(2)
-        cat = c4.selectbox("Categoria", CATEGORIAS)
-        prio = c5.selectbox("Prioridade", PRIORIDADES, index=1)
-        c6, c7 = st.columns(2)
-        total = c6.number_input("Total de cartas", min_value=0, value=0)
-        possuo = c7.number_input("Quantas eu tenho", min_value=0, value=0)
-        if st.form_submit_button("Adicionar", type="primary"):
-            if not idol.strip():
-                st.error("Informe o nome.")
-            elif possuo > total:
-                st.error("Você não pode ter mais cartas do que o total.")
-            else:
-                try:
-                    run("INSERT INTO colecao (bot, grupo, idol, categoria, prioridade, total, possuo) "
-                        "VALUES (?,?,?,?,?,?,?)",
-                        (bot, grupo.strip(), idol.strip(), cat, prio, int(total), int(possuo)))
-                    st.rerun()
-                except psycopg2.IntegrityError:
-                    st.error(f"{idol} ({grupo}) já existe no bot {bot}. Edite na aba Tabela.")
+    @st.dialog(texto_cadastro("titulo"))
+    def dialog_formulario():
+        idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+        traducoes = TRADUCOES_NAVEGACAO["cadastro"][idioma]
+        with st.form("novo", clear_on_submit=True):
+            idol = st.text_input(texto_cadastro("idol_solista"))
+            grupo = st.text_input(texto_cadastro("grupo_ou_solo"))
+            bot = st.selectbox(texto_cadastro("bot"), BOTS)
+            c4, c5 = st.columns(2)
+            cat = c4.selectbox(
+                texto_cadastro("categoria"),
+                CATEGORIAS,
+                format_func=traducoes["categorias"].get,
+            )
+            prio = c5.selectbox(
+                texto_cadastro("prioridade"),
+                PRIORIDADES,
+                index=1,
+                format_func=traducoes["prioridades"].get,
+            )
+            c6, c7 = st.columns(2)
+            total = c6.number_input(
+                texto_cadastro("total_cartas"), min_value=0, value=0
+            )
+            possuo = c7.number_input(
+                texto_cadastro("quantidade_possuo"), min_value=0, value=0
+            )
+            if st.form_submit_button(texto_cadastro("adicionar"), type="primary"):
+                if not idol.strip():
+                    st.error(texto_cadastro("informe_nome"))
+                elif possuo > total:
+                    st.error(texto_cadastro("possuo_maior_total"))
+                else:
+                    try:
+                        run("INSERT INTO colecao (bot, grupo, idol, categoria, prioridade, total, possuo) "
+                            "VALUES (?,?,?,?,?,?,?)",
+                            (bot, grupo.strip(), idol.strip(), cat, prio, int(total), int(possuo)))
+                        st.rerun()
+                    except psycopg2.IntegrityError:
+                        st.error(
+                            texto_cadastro(
+                                "ja_existe",
+                                idol=idol,
+                                grupo=grupo,
+                                bot=bot,
+                                aba=texto_navegacao("aba_tabela"),
+                            )
+                        )
+
+    dialog_formulario()
 
 
 # ---------------------------------------------------------------- Dados
@@ -980,24 +1796,24 @@ if card_selecionado:
     try:
         card_selecionado = int(card_selecionado)
     except ValueError:
-        st.error("O identificador do card na URL é inválido.")
+        st.error(texto_detalhe("card_url_invalido"))
         st.query_params.pop("card", None)
         st.stop()
 
     selecionado = df_all[df_all["id"] == card_selecionado]
     if selecionado.empty:
-        st.warning("Este card não está mais na coleção.")
-        if st.button("← Voltar ao painel"):
+        st.warning(texto_detalhe("card_removido"))
+        if st.button(texto_detalhe("voltar_painel")):
             st.query_params.pop("card", None)
             st.rerun()
         st.stop()
 
     card = selecionado.iloc[0]
-    if st.button("← Voltar ao painel"):
+    if st.button(texto_detalhe("voltar_painel")):
         st.query_params.pop("card", None)
         st.rerun()
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
-    st.caption(f'{card["grupo"]} · Bot {card["bot"]}')
+    st.caption(f'{card["grupo"]} · {texto_detalhe("bot")} {card["bot"]}')
 
     descricao_card = card["descricao_pt"]
     fonte_descricao = card["descricao_url"]
@@ -1021,48 +1837,63 @@ if card_selecionado:
         or descricao_card_desatualizada
     ) and descricao_pode_carregar("card", card_selecionado):
         try:
-            with st.spinner("Buscando no KProfiles e traduzindo para português..."):
+            with st.spinner(texto_detalhe("buscando_traduzindo")):
                 descricao_card, fonte_descricao = atualizar_descricao_card(
                     int(card_selecionado), card["idol"], card["grupo"]
                 )
             registrar_sucesso_descricao("card", card_selecionado)
         except MyMemoryRateLimited as erro:
-            st.warning(f"A tradução está temporariamente pausada: {erro}")
+            st.warning(texto_detalhe("traducao_pausada"))
             registrar_falha_descricao("card", card_selecionado)
         except KProfilesRateLimited as erro:
-            st.warning(str(erro))
+            st.warning(texto_detalhe("kprofiles_pausado"))
             registrar_falha_descricao("card", card_selecionado)
         except (requests.RequestException, ValueError) as erro:
-            st.error(f"Não foi possível carregar a descrição: {erro}")
+            st.error(texto_detalhe("descricao_indisponivel", erro=erro))
             registrar_falha_descricao("card", card_selecionado)
         original_card = descricao_original("card", card_selecionado)
-        if original_card:
+        if (
+            original_card
+            and (pd.isna(descricao_card) or not str(descricao_card).strip())
+        ):
             descricao_card, fonte_descricao = original_card
             descricao_card_em_ingles = True
+
+    if pd.notna(descricao_card) and str(descricao_card).strip():
+        try:
+            descricao_card, descricao_card_em_ingles = descricao_para_idioma(
+                str(descricao_card),
+                original_card[0] if original_card else None,
+            )
+        except MyMemoryRateLimited as erro:
+            st.warning(texto_detalhe("traducao_pausada"))
+        except (requests.RequestException, ValueError) as erro:
+            st.warning(texto_detalhe("falha_traduzir_resumo", erro=erro))
 
     coluna_foto, coluna_sobre = st.columns([1, 2], gap="large", vertical_alignment="top")
     with coluna_foto:
         if card["url_foto"]:
             st.markdown(
                 f'<div class="detail-photo"><img src="{esc(card["url_foto"], quote=True)}" '
-                'alt="Foto do card" referrerpolicy="no-referrer" loading="lazy"></div>',
+                f'alt="{esc(texto_detalhe("foto_card"), quote=True)}" '
+                'referrerpolicy="no-referrer" loading="lazy"></div>',
                 unsafe_allow_html=True,
             )
         else:
-            st.info("Ainda não há uma imagem para este card.")
+            st.info(texto_detalhe("sem_foto_card"))
     with coluna_sobre:
-        st.subheader("Sobre")
+        st.subheader(texto_detalhe("sobre"))
         if pd.notna(descricao_card) and str(descricao_card).strip():
             st.write(str(descricao_card))
             if pd.notna(fonte_descricao) and fonte_descricao:
                 texto_fonte = (
-                    "texto original em inglês"
+                    texto_detalhe("fonte_original_ingles")
                     if descricao_card_em_ingles
-                    else "tradução automática"
+                    else texto_detalhe("traducao_automatica")
                 )
                 st.caption(f"Fonte: [KProfiles]({fonte_descricao}) · {texto_fonte}")
         else:
-            st.caption("O perfil ainda não tem um resumo disponível.")
+            st.caption(texto_detalhe("resumo_indisponivel"))
 
     grupo_completo = card["idol"] == GRUPO_COMPLETO
     if grupo_completo:
@@ -1072,9 +1903,11 @@ if card_selecionado:
                     (int(card_selecionado),))
         roster_url = None
         roster = None
-        st.subheader("Membros")
+        st.subheader(texto_detalhe("membros"))
         try:
-            with st.spinner(f"Conferindo os integrantes de {card['grupo']} no KProfiles..."):
+            with st.spinner(
+                texto_detalhe("verificando_membros", grupo=card["grupo"])
+            ):
                 roster, roster_url = buscar_integrantes_kprofiles(card["grupo"])
             existentes = {
                 str(membro.nome).strip().casefold()
@@ -1094,15 +1927,20 @@ if card_selecionado:
                             "WHERE colecao_id=? ORDER BY nome",
                             (int(card_selecionado),))
         except (requests.RequestException, ValueError) as erro:
-            st.warning(f"Não foi possível verificar os integrantes no KProfiles: {erro}")
-            if st.button("Tentar buscar novamente", key=f"buscar_membros_{card_selecionado}"):
+            st.warning(texto_detalhe("membros_indisponiveis", erro=erro))
+            if st.button(
+                texto_detalhe("tentar_novamente"),
+                key=f"buscar_membros_{card_selecionado}",
+            ):
                 st.rerun()
 
         if roster_url:
-            st.markdown(f"Fonte conferida: [KProfiles]({roster_url})")
+            st.markdown(
+                f'{texto_detalhe("fonte_conferida")}: [KProfiles]({roster_url})'
+            )
 
         if membros.empty:
-            st.info("Os blocos dos integrantes aparecerão quando a lista for encontrada.")
+            st.info(texto_detalhe("blocos_membros_indisponiveis"))
         else:
             membros_por_nome = {
                 str(membro.nome).strip().casefold(): membro
@@ -1121,10 +1959,7 @@ if card_selecionado:
                     if chave not in nomes_fonte
                 ]
                 if adicionais:
-                    st.warning(
-                        "Há integrantes salvos que não aparecem na lista atual do KProfiles. "
-                        "Eles e seus dados foram mantidos."
-                    )
+                    st.warning(texto_detalhe("membros_adicionais"))
                     ordem_membros.extend(adicionais)
             else:
                 ordem_membros = list(membros.itertuples())
@@ -1154,40 +1989,74 @@ if card_selecionado:
                 pode_buscar = descricao_pode_carregar("membro", membro.id)
                 if resumo_vazio and pode_buscar:
                     if st.button(
-                        f"Carregar resumo de {membro.nome}",
+                        texto_detalhe(
+                            "carregar_resumo", membro=str(membro.nome)
+                        ),
                         key=f"carregar_resumo_membro_{membro.id}",
                     ):
                         try:
-                            with st.spinner(f"Carregando resumo de {membro.nome}..."):
+                            with st.spinner(
+                                texto_detalhe(
+                                    "carregando_resumo", membro=str(membro.nome)
+                                )
+                            ):
                                 descricao_membro, fonte_membro = atualizar_descricao_membro(
                                     int(membro.id), membro.nome, card["grupo"]
                                 )
                             registrar_sucesso_descricao("membro", membro.id)
                         except MyMemoryRateLimited as erro:
                             registrar_falha_descricao("membro", membro.id)
-                            st.warning(f"A tradução está temporariamente pausada: {erro}")
+                            st.warning(texto_detalhe("traducao_pausada"))
                         except KProfilesRateLimited as erro:
                             registrar_falha_descricao("membro", membro.id)
-                            st.warning(str(erro))
+                            st.warning(texto_detalhe("kprofiles_pausado"))
                         except (requests.RequestException, ValueError) as erro:
                             registrar_falha_descricao("membro", membro.id)
-                            st.caption(f"Resumo de {membro.nome} indisponível: {erro}")
+                            st.caption(
+                                texto_detalhe(
+                                    "resumo_membro_indisponivel",
+                                    membro=str(membro.nome),
+                                    erro=erro,
+                                )
+                            )
                         original_membro = descricao_original("membro", membro.id)
-                        if original_membro:
+                        if (
+                            original_membro
+                            and (
+                                pd.isna(descricao_membro)
+                                or not str(descricao_membro).strip()
+                            )
+                        ):
                             descricao_membro, fonte_membro = original_membro
                             descricao_membro_em_ingles = True
                 elif resumo_vazio:
                     st.caption(
-                        f"Resumo de {membro.nome} temporariamente indisponível. "
-                        "Tente novamente mais tarde."
+                        texto_detalhe(
+                            "resumo_temporariamente_indisponivel",
+                            membro=str(membro.nome),
+                        )
                     )
+                if pd.notna(descricao_membro) and str(descricao_membro).strip():
+                    try:
+                        descricao_membro, descricao_membro_em_ingles = (
+                            descricao_para_idioma(
+                                str(descricao_membro),
+                                original_membro[0] if original_membro else None,
+                            )
+                        )
+                    except MyMemoryRateLimited as erro:
+                        st.warning(texto_detalhe("traducao_pausada"))
+                    except (requests.RequestException, ValueError) as erro:
+                        st.warning(
+                            texto_detalhe("falha_traduzir_resumo", erro=erro)
+                        )
                 if pd.notna(descricao_membro) and str(descricao_membro).strip():
                     st.markdown(str(descricao_membro))
                     if pd.notna(fonte_membro) and fonte_membro:
                         texto_fonte = (
-                            "texto original em inglês"
+                            texto_detalhe("fonte_original_ingles")
                             if descricao_membro_em_ingles
-                            else "tradução automática"
+                            else texto_detalhe("traducao_automatica")
                         )
                         st.caption(f"Fonte: [KProfiles]({fonte_membro}) · {texto_fonte}")
                 renderizar_eras_eventos(
@@ -1204,15 +2073,16 @@ if card_selecionado:
             (int(card_selecionado),),
         )
         if not eras_sem_membro.empty or not eventos_sem_membro.empty:
-            with st.expander("Registros antigos sem integrante", expanded=False):
-                st.caption("Estes registros foram adicionados antes da divisão por membro.")
+            with st.expander(texto_detalhe("registros_antigos"), expanded=False):
+                st.caption(texto_detalhe("registros_anteriores"))
                 for era in eras_sem_membro.itertuples():
                     diamantes = "💎" * int(era.diamantes)
                     st.markdown(f"**{esc(era.nome)}** · `{esc(era.sigla)}` · {diamantes}")
                 for evento in eventos_sem_membro.itertuples():
                     st.markdown(
                         f"{icone_evento(evento.nome)} **{esc(evento.nome)}** · "
-                        f"`{esc(evento.sigla)}` · Marcadores: {int(evento.marcadores)}"
+                        f"`{esc(evento.sigla)}` · "
+                        f"{texto_detalhe('marcadores_evento', quantidade=int(evento.marcadores))}"
                     )
     else:
         renderizar_eras_eventos(int(card_selecionado))
@@ -1224,25 +2094,34 @@ with st.container(key="app_header"):
     c_tit, c_pill, c_btn, c_user = st.columns(
         [4.2, 2.4, 2.4, 1.0], vertical_alignment="center"
     )
-    c_tit.markdown('<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
-                   '<span class="mut">Coleção de bots do Discord</span></div></div>', unsafe_allow_html=True)
-    c_pill.markdown(f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} Coleção completa</div>',
+    c_tit.markdown(
+        '<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
+        f'<span class="mut">{esc(texto_navegacao("colecao_bots_discord"))}</span>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+    c_pill.markdown(
+        f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} '
+        f'{esc(texto_navegacao("colecao_completa"))}</div>',
                     unsafe_allow_html=True)
-    if c_btn.button("＋  Adicionar idol / bot", type="primary", width="stretch"):
+    if c_btn.button(
+        texto_navegacao("adicionar_idol_bot"), type="primary", width="stretch"
+    ):
         dialog_adicionar()
     nome_conta = st.session_state["authenticated_user_name"]
     email_conta = st.session_state["authenticated_user_email"]
     foto_conta = st.session_state.get("authenticated_user_picture", "")
     if foto_conta.startswith("https://"):
         avatar_html = (
-            f'<img src="{esc(foto_conta, quote=True)}" alt="Foto do perfil" '
+            f'<img src="{esc(foto_conta, quote=True)}" '
+            f'alt="{esc(texto_navegacao("foto_perfil"), quote=True)}" '
             'style="width:42px;height:42px;border-radius:50%;object-fit:cover;'
             'display:block;">'
         )
     else:
         iniciais = esc("".join(parte[0] for parte in nome_conta.split()[:2]).upper())
         avatar_html = (
-            '<div aria-label="Foto do perfil indisponível" '
+            f'<div aria-label="{esc(texto_navegacao("foto_perfil_indisponivel"), quote=True)}" '
             'style="width:42px;height:42px;border-radius:50%;background:#dbeafe;'
             'color:#1e3a8a;display:flex;align-items:center;justify-content:center;'
             'font-weight:700;">'
@@ -1251,32 +2130,48 @@ with st.container(key="app_header"):
     with c_user:
         c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
         c_foto.markdown(avatar_html, unsafe_allow_html=True)
-        with c_menu.popover("⋮", help="Conta conectada"):
+        with c_menu.popover("⋮", help=texto_navegacao("conta_conectada")):
+            seletor_idioma()
             st.markdown(f"**{esc(nome_conta)}**")
             st.caption(email_conta)
-            if st.button("Sair da conta", key="logout_button", width="stretch"):
+            if st.button(
+                texto_navegacao("sair_conta"),
+                key="logout_button",
+                width="stretch",
+            ):
                 st.logout()
 
-tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(["Painel", "Tabela", "Fotos", "Importar CSV"])
+tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(
+    [
+        texto_navegacao("aba_painel"),
+        texto_navegacao("aba_tabela"),
+        texto_navegacao("aba_fotos"),
+        texto_navegacao("aba_importar_csv"),
+    ]
+)
 
 # ---------------------------------------------------------------- Painel
 with tab_painel:
     if df_all.empty:
-        st.info("Nada por aqui ainda. Use **Importar CSV** ou o botão **Adicionar idol / bot**.")
+        st.info(texto_painel("painel_vazio"))
     else:
-        bots_ord = ["Todos"] + sorted(df_all["bot"].unique())
+        bots_ord = [texto_painel("todos")] + sorted(df_all["bot"].unique())
         if st.session_state.get("bot_sel") not in bots_ord:
-            st.session_state["bot_sel"] = "Todos"
+            st.session_state["bot_sel"] = texto_painel("todos")
         sel = st.session_state["bot_sel"]
-        base_df = df_all if sel == "Todos" else df_all[df_all["bot"] == sel]
+        bot_todos = texto_painel("todos")
+        base_df = df_all if sel == bot_todos else df_all[df_all["bot"] == sel]
         t, p = int(base_df["total"].sum()), int(base_df["possuo"].sum())
         v = pct(p, t)
         st.markdown(
-            f'<div class="hero"><div><div class="lbl">PROGRESSO GERAL</div><div class="big">{v:.0f}%</div>'
-            f'<div class="sub">{p} de {t} cartas coletadas</div></div>{ring(v)}{barra(v)}</div>',
-            unsafe_allow_html=True)
+            f'<div class="hero"><div><div class="lbl">{texto_painel("progresso_geral")}</div>'
+            f'<div class="big">{v:.0f}%</div>'
+            f'<div class="sub">{texto_painel("cartas_coletadas", possuidas=p, total=t)}'
+            f'</div></div>{ring(v)}{barra(v)}</div>',
+            unsafe_allow_html=True,
+        )
 
-        st.subheader("Coleções mais avançadas por bot")
+        st.subheader(texto_painel("colecoes_avancadas"))
         bots_com_colecao = sorted(df_all["bot"].dropna().unique())
         for bot in bots_com_colecao:
             st.markdown(f"### {esc(bot)}")
@@ -1305,28 +2200,56 @@ with tab_painel:
                         st.progress(progresso / 100)
                         st.caption(
                             f"{progresso:.0f}% · {int(destaque.possuo)} / "
-                            f"{int(destaque.total)} cartas"
+                            f"{int(destaque.total)} {texto_painel('cartas')}"
                         )
 
         esq, dir_ = st.columns([1, 3], gap="large")
         with esq:
-            st.markdown('<div class="lbl">BOTS</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="lbl">{texto_painel("bots")}</div>',
+                unsafe_allow_html=True,
+            )
             with st.container(key="botes"):
                 for b in bots_ord:
-                    sub = df_all if b == "Todos" else df_all[df_all["bot"] == b]
+                    sub = df_all if b == bot_todos else df_all[df_all["bot"] == b]
                     vb = pct(sub["possuo"].sum(), sub["total"].sum())
-                    st.button(f"{b}  ·  {len(sub)} idols", key=f"bot_{b}", width="stretch",
-                              type="primary" if b == sel else "secondary",
-                              on_click=selecionar_bot, args=(b,))
-                    st.markdown(f'{barra(vb)}<div class="brow"><span>Progresso</span><b>{vb:.0f}%</b></div>',
-                                unsafe_allow_html=True)
+                    st.button(
+                        f"{b}  ·  {texto_painel('idols_contagem', quantidade=len(sub))}",
+                        key=f"bot_{b}",
+                        width="stretch",
+                        type="primary" if b == sel else "secondary",
+                        on_click=selecionar_bot,
+                        args=(b,),
+                    )
+                    st.markdown(
+                        f'<div>{barra(vb)}<div class="brow"><span>'
+                        f'{texto_painel("progresso")}</span><b>{vb:.0f}%</b></div></div>',
+                        unsafe_allow_html=True,
+                    )
         with dir_:
             f1, f2, f3 = st.columns([3, 2, 2])
-            busca = f1.text_input("Buscar", placeholder="Buscar idol ou grupo",
-                                  label_visibility="collapsed", key="p_busca")
-            ordem = f2.selectbox("Ordenar", ORDENS, label_visibility="collapsed", key="p_ordem")
-            prios = f3.multiselect("Prioridade", PRIORIDADES, placeholder="Prioridade",
-                                   label_visibility="collapsed", key="p_prio")
+            busca = f1.text_input(
+                texto_painel("buscar"),
+                placeholder=texto_painel("buscar_idol_grupo"),
+                label_visibility="collapsed",
+                key="p_busca",
+            )
+            idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+            ordem = f2.selectbox(
+                texto_painel("ordenar"),
+                ORDENS,
+                format_func=TRADUCOES_NAVEGACAO["ordens"][idioma].get,
+                label_visibility="collapsed",
+                key="p_ordem",
+            )
+            prios = f3.multiselect(
+                texto_painel("prioridade"),
+                PRIORIDADES,
+                format_func=TRADUCOES_NAVEGACAO["prioridades"][idioma].get,
+                placeholder=texto_painel("prioridade"),
+                label_visibility="collapsed",
+                key="p_prio",
+            )
             vis = base_df
             if busca:
                 vis = vis[vis["idol"].str.contains(busca, case=False, regex=False)
@@ -1336,8 +2259,15 @@ with tab_painel:
             vis = ordenar(vis, ordem)
             vis = vis.copy()
             n = st.session_state.setdefault("n_cards", 12)
-            st.markdown(f'<div class="hd"><h3>{"Todas as idols" if sel == "Todos" else esc(sel)}</h3>'
-                        f'<span>{len(vis)} idols</span></div>', unsafe_allow_html=True)
+            titulo_colecoes = (
+                texto_painel("todas_colecoes") if sel == bot_todos else esc(sel)
+            )
+            st.markdown(
+                f'<div class="hd"><h3>{titulo_colecoes}</h3>'
+                f'<span>{texto_painel("idols_contagem", quantidade=len(vis))}'
+                '</span></div>',
+                unsafe_allow_html=True,
+            )
 
             cards_visiveis = list(vis.head(n).itertuples())
             for inicio in range(0, len(cards_visiveis), 4):
@@ -1349,7 +2279,7 @@ with tab_painel:
                                 nome_card = r.grupo if r.idol == GRUPO_COMPLETO else r.idol
                                 st.markdown(
                                     f'<a class="card-link" href="?card={int(r.id)}" target="_self" '
-                                    f'aria-label="Abrir detalhes de {esc(nome_card, quote=True)}">'
+                                    f'aria-label="{esc(texto_painel("abrir_detalhes", nome=nome_card), quote=True)}">'
                                     f'{card_html(r)}</a>',
                                     unsafe_allow_html=True)
                                 c1, c2, c3, c4 = st.columns(
@@ -1365,22 +2295,37 @@ with tab_painel:
                                           disabled=bool(r.possuo >= r.total))
                                 c4.markdown(ring(r.progresso, sm=True), unsafe_allow_html=True)
             if len(vis) > n:
-                st.button(f"Mostrar mais ({len(vis) - n} restantes)", on_click=mostrar_mais,
-                          width="stretch")
+                st.button(
+                    texto_painel("mostrar_mais", quantidade=len(vis) - n),
+                    on_click=mostrar_mais,
+                    width="stretch",
+                )
 
 # ---------------------------------------------------------------- Tabela (edição em massa)
 with tab_tabela:
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    traducoes_tabela = TRADUCOES_NAVEGACAO["tabela"][idioma]
+    traducoes_cadastro = TRADUCOES_NAVEGACAO["cadastro"][idioma]
     if df_all.empty:
-        st.info("Nada por aqui ainda.")
+        st.info(texto_tabela("vazio"))
     else:
-        st.caption("Edite direto na tabela e clique em **Salvar alterações**. O total geral soma cada linha; "
-                   "cartas compartilhadas entre membros do mesmo grupo podem ser contadas mais de uma vez.")
+        st.caption(texto_tabela("instrucoes"))
         f1, f2, f3, f4, f5 = st.columns(5)
-        fb = f1.multiselect("Bot", sorted(df_all["bot"].unique()), key="t_bot")
-        fg = f2.multiselect("Grupo", sorted(df_all["grupo"].unique(), key=str.casefold), key="t_grupo")
-        fp = f3.multiselect("Prioridade", PRIORIDADES, key="t_prio")
-        fc = f4.multiselect("Categoria", CATEGORIAS, key="t_cat")
-        busca_t = f5.text_input("Buscar idol", key="t_busca")
+        fb = f1.multiselect(texto_tabela("bot"), sorted(df_all["bot"].unique()), key="t_bot")
+        fg = f2.multiselect(texto_tabela("grupo"), sorted(df_all["grupo"].unique(), key=str.casefold), key="t_grupo")
+        fp = f3.multiselect(
+            texto_tabela("prioridade"),
+            PRIORIDADES,
+            format_func=traducoes_cadastro["prioridades"].get,
+            key="t_prio",
+        )
+        fc = f4.multiselect(
+            texto_tabela("categoria"),
+            CATEGORIAS,
+            format_func=traducoes_cadastro["categorias"].get,
+            key="t_cat",
+        )
+        busca_t = f5.text_input(texto_tabela("buscar_idol"), key="t_busca")
         df = df_all
         if fb:
             df = df[df["bot"].isin(fb)]
@@ -1393,8 +2338,18 @@ with tab_tabela:
         if busca_t:
             df = df[df["idol"].str.contains(busca_t, case=False, regex=False)
                     | df["grupo"].str.contains(busca_t, case=False, regex=False)]
-        df = ordenar(df, st.selectbox("Ordenar por", ORDENS, key="t_ordem")).copy()
+        df = ordenar(
+            df,
+            st.selectbox(
+                texto_tabela("ordenar_por"),
+                ORDENS,
+                format_func=TRADUCOES_NAVEGACAO["ordens"][idioma].get,
+                key="t_ordem",
+            ),
+        ).copy()
         df["excluir"] = False
+        df["categoria"] = df["categoria"].map(traducoes_cadastro["categorias"].get)
+        df["prioridade"] = df["prioridade"].map(traducoes_cadastro["prioridades"].get)
 
         edited = st.data_editor(
             df, hide_index=True, width="stretch",
@@ -1402,66 +2357,87 @@ with tab_tabela:
             column_order=["bot", "grupo", "idol", "categoria", "prioridade",
                           "total", "possuo", "faltam", "progresso", "image_url", "excluir"],
             column_config={
-                "bot": st.column_config.SelectboxColumn("Bot", options=BOTS),
-                "grupo": "Grupo",
-                "idol": "Idol",
-                "categoria": st.column_config.SelectboxColumn("Categoria", options=CATEGORIAS),
-                "prioridade": st.column_config.SelectboxColumn("Prioridade", options=PRIORIDADES),
-                "total": st.column_config.NumberColumn("Total", min_value=0, step=1),
-                "possuo": st.column_config.NumberColumn("Tenho", min_value=0, step=1),
-                "faltam": st.column_config.NumberColumn("Faltam"),
+                "bot": st.column_config.SelectboxColumn(texto_tabela("bot"), options=BOTS),
+                "grupo": texto_tabela("grupo"),
+                "idol": texto_tabela("idol"),
+                "categoria": st.column_config.SelectboxColumn(
+                    texto_tabela("categoria"),
+                    options=list(traducoes_cadastro["categorias"].values()),
+                ),
+                "prioridade": st.column_config.SelectboxColumn(
+                    texto_tabela("prioridade"),
+                    options=list(traducoes_cadastro["prioridades"].values()),
+                ),
+                "total": st.column_config.NumberColumn(texto_tabela("total"), min_value=0, step=1),
+                "possuo": st.column_config.NumberColumn(texto_tabela("possuo"), min_value=0, step=1),
+                "faltam": st.column_config.NumberColumn(texto_tabela("faltam")),
                 "progresso": st.column_config.ProgressColumn(
-                    "Progresso", min_value=0, max_value=100, format="%.0f%%"),
-                "image_url": st.column_config.TextColumn("URL da foto"),
-                "excluir": st.column_config.CheckboxColumn("Excluir"),
+                    texto_tabela("progresso"), min_value=0, max_value=100, format="%.0f%%"),
+                "image_url": st.column_config.TextColumn(texto_tabela("url_foto")),
+                "excluir": st.column_config.CheckboxColumn(texto_tabela("excluir")),
             },
         )
-        if st.button("💾 Salvar alterações", type="primary"):
+        if st.button(texto_tabela("salvar"), type="primary"):
             erros = []
             for r in edited.itertuples():
                 if r.excluir:
                     run("DELETE FROM colecao WHERE id=?", (int(r.id),))
                 elif r.total < 0 or r.possuo < 0:
-                    erros.append(f"{r.idol} ({r.bot}): valores não podem ser negativos.")
+                    erros.append(
+                        texto_tabela(
+                            "valores_negativos", idol=r.idol, bot=r.bot
+                        )
+                    )
                 elif r.possuo > r.total:
-                    erros.append(f"{r.idol} ({r.bot}): 'Tenho' maior que 'Total'.")
+                    erros.append(
+                        texto_tabela(
+                            "possuo_maior_total", idol=r.idol, bot=r.bot
+                        )
+                    )
                 else:
                     try:
                         run("UPDATE colecao SET bot=?, grupo=?, idol=?, categoria=?, prioridade=?, "
                             "total=?, possuo=?, image_url=? WHERE id=?",
-                            (r.bot, r.grupo, r.idol, r.categoria, r.prioridade,
+                            (r.bot, r.grupo, r.idol,
+                             traducoes_cadastro["categorias"].get(r.categoria, r.categoria),
+                             traducoes_cadastro["prioridades"].get(r.prioridade, r.prioridade),
                              int(r.total), int(r.possuo), _url(r.image_url), int(r.id)))
                     except psycopg2.IntegrityError:
-                        erros.append(f"{r.idol} ({r.grupo}) já existe no bot {r.bot}.")
+                        erros.append(
+                            texto_tabela(
+                                "duplicado", idol=r.idol, grupo=r.grupo, bot=r.bot
+                            )
+                        )
             if erros:
                 for e in erros:
                     st.error(e)
             else:
                 st.rerun()
-        st.download_button("⬇️ Baixar CSV", q("SELECT * FROM colecao").to_csv(index=False),
-                           "binderlog.csv", "text/csv")
+        exportacao = q("SELECT * FROM colecao").rename(
+            columns=traducoes_tabela["colunas_exportadas"]
+        )
+        st.download_button(
+            texto_tabela("baixar_csv"),
+            exportacao.to_csv(index=False),
+            "binderlog.csv",
+            "text/csv",
+        )
 
 # ---------------------------------------------------------------- Fotos
 with tab_fotos:
     if df_all.empty:
-        st.info("Importe ou adicione idols primeiro.")
+        st.info(texto_fotos("vazio"))
     else:
-        st.caption(
-            "As buscas usam KProfiles primeiro e kpopping.com como alternativa. "
-            "Os resultados ficam em cache por até 24 horas."
-        )
+        st.caption(texto_fotos("descricao_busca"))
         if time.time() < st.session_state.get("kpopping_fotos_cooldown_ate", 0):
-            st.info(
-                "kpopping.com está temporariamente pausado após limitar uma busca. "
-                "O KProfiles continua disponível."
-            )
+            st.info(texto_fotos("kpopping_pausado"))
 
         with st.container(border=True):
-            st.subheader("Buscar fotos em lote")
+            st.subheader(texto_fotos("buscar_lote"))
             fb2 = st.multiselect(
-                "Filtrar por bot (vazio = todos)",
+                texto_fotos("filtrar_bot"),
                 sorted(df_all["bot"].unique()),
-                placeholder="Escolha os bots",
+                placeholder=texto_fotos("escolher_bots"),
                 key="f_bots",
             )
             dff = df_all[df_all["bot"].isin(fb2)] if fb2 else df_all
@@ -1470,9 +2446,16 @@ with tab_fotos:
             repetidas = set(contagem[contagem > 1].index)
             falta = dff["url_foto"].isna()
             rep = dff["url_foto"].isin(repetidas)
+            idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+            modos_fotos = {
+                "Só as que faltam": "so_faltantes",
+                "Faltam + repetidas": "faltantes_repetidas",
+                "Todas (substituir)": "todas_substituir",
+            }
             modo = st.radio(
-                "Buscar fotos para",
-                ["Só as que faltam", "Faltam + repetidas", "Todas (substituir)"],
+                texto_fotos("buscar_para"),
+                list(modos_fotos),
+                format_func=lambda value: texto_fotos(modos_fotos[value]),
                 horizontal=True,
                 key="f_modo",
             )
@@ -1485,14 +2468,14 @@ with tab_fotos:
                 [1, 2], vertical_alignment="bottom"
             )
             limite = c_limite.number_input(
-                "Limite por busca",
+                texto_fotos("limite"),
                 min_value=1,
                 max_value=100,
                 value=30,
                 key="f_lim",
             )
             if c_busca.button(
-                f"🔎 Buscar fotos ({len(alvo)} idols)",
+                texto_fotos("buscar_contagem", quantidade=len(alvo)),
                 disabled=alvo.empty,
                 width="stretch",
             ):
@@ -1515,28 +2498,30 @@ with tab_fotos:
                         falhou.append(f"{r.idol} ({r.grupo}): {e}")
                     barra_p.progress(i / len(alvo))
                     time.sleep(0.2)
-                st.success(f"{achou} fotos atualizadas.")
+                st.success(texto_fotos("atualizadas", quantidade=achou))
                 if pausa_kprofiles:
                     st.warning(
-                        f"{pausa_kprofiles} O restante da busca em lote foi interrompido."
+                        texto_fotos("lote_interrompido", erro=pausa_kprofiles)
                     )
                 if falhou:
                     st.warning(
-                        "Sem foto nova: " + "; ".join(falhou)
-                        + ". Use o ajuste individual abaixo."
+                        texto_fotos("sem_novas", itens="; ".join(falhou))
                     )
                 if not pausa_kprofiles and not falhou:
                     st.rerun()
-            st.caption(f"{int(falta.sum())} sem foto · {int(rep.sum())} repetidas")
+            st.caption(
+                f'{texto_fotos("sem_foto_contagem", quantidade=int(falta.sum()))} · '
+                f'{texto_fotos("repetidas_contagem", quantidade=int(rep.sum()))}'
+            )
 
         with st.container(border=True):
-            st.subheader("Ajustar foto individual")
+            st.subheader(texto_fotos("ajuste_individual"))
             rotulo = {
                 int(r.id): f"{r.idol} — {r.grupo} ({r.bot})"
                 for r in ordenar(df_all, "Idol (A–Z)").itertuples()
             }
             sel_id = st.selectbox(
-                "Idol",
+                texto_fotos("idol"),
                 list(rotulo),
                 format_func=rotulo.get,
                 key="f_idol",
@@ -1548,10 +2533,10 @@ with tab_fotos:
                 if atual:
                     st.image(atual, width=220)
                 else:
-                    st.info("Este card ainda não tem foto.")
+                    st.info(texto_fotos("card_sem_foto"))
             with g2:
                 if st.button(
-                    "🔄 Buscar outra foto",
+                    texto_fotos("buscar_outra"),
                     key="f_troca",
                     width="stretch",
                 ):
@@ -1559,14 +2544,16 @@ with tab_fotos:
                         if trocar_foto(sel_id, linha["idol"], linha["grupo"], atual):
                             st.rerun()
                         else:
-                            st.warning("Não achei outra foto. Cole uma URL abaixo.")
+                            st.warning(texto_fotos("outra_nao_encontrada"))
                     except KProfilesRateLimited as e:
                         st.warning(str(e))
                     except Exception as e:
                         st.error(str(e))
-                nova = st.text_input("URL direta da foto", key=f"f_url_{sel_id}")
+                nova = st.text_input(
+                    texto_fotos("url_direta"), key=f"f_url_{sel_id}"
+                )
                 if st.button(
-                    "Salvar URL",
+                    texto_fotos("salvar_url"),
                     key="f_salva",
                     disabled=not _url(nova),
                     width="stretch",
@@ -1579,40 +2566,91 @@ with tab_fotos:
 
 # ---------------------------------------------------------------- Importar CSV
 with tab_imp:
-    st.subheader("Importar coleção da Garam")
-    st.caption("O arquivo Bancodedados é obrigatório e contém o total e a quantidade adquirida. "
-               "Priolist é opcional e preenche prioridade e categoria. "
-               "Idols já existentes serão atualizados.")
-    bot_imp = st.selectbox("Bot", BOTS, key="bot_imp")
-    f_banco = st.file_uploader("Bancodedados (.csv)", type="csv", key="f_banco")
-    f_prio = st.file_uploader("Priolist (.csv) — opcional", type="csv", key="f_prio")
+    idioma = st.session_state.get("idioma_interface", IDIOMAS[0])
+    traducoes_importacao = TRADUCOES_NAVEGACAO["importacao"][idioma]
+    traducoes_cadastro = TRADUCOES_NAVEGACAO["cadastro"][idioma]
+    st.subheader(texto_importacao("titulo"))
+    st.caption(texto_importacao("descricao"))
+    bot_imp = st.selectbox(texto_importacao("bot"), BOTS, key="bot_imp")
+    f_banco = st.file_uploader(
+        texto_importacao("bancodedados"), type="csv", key="f_banco"
+    )
+    f_prio = st.file_uploader(
+        texto_importacao("priolist"), type="csv", key="f_prio"
+    )
     if f_banco:
         try:
             prev, avisos = parse_garam(f_banco, f_prio)
             st.divider()
-            st.subheader("Prévia da importação")
-            st.caption(f"{len(prev)} linhas prontas para importar")
+            st.subheader(texto_importacao("previa"))
+            st.caption(
+                texto_importacao("linhas_prontas", quantidade=len(prev))
+            )
             if avisos:
-                with st.expander(f"⚠️ {len(avisos)} aviso(s) na leitura do CSV"):
+                with st.expander(
+                    texto_importacao("avisos_csv", quantidade=len(avisos))
+                ):
                     for a in avisos:
                         st.write("• " + a)
+            previa_exibicao = prev.copy()
+            previa_exibicao["categoria"] = previa_exibicao["categoria"].map(
+                traducoes_cadastro["categorias"].get
+            )
+            previa_exibicao["prioridade"] = previa_exibicao["prioridade"].map(
+                traducoes_cadastro["prioridades"].get
+            )
             st.dataframe(
-                prev,
+                previa_exibicao,
                 hide_index=True,
                 width="stretch",
                 height=520,
                 column_config={
-                    "grupo": st.column_config.TextColumn("Grupo", width="medium"),
-                    "idol": st.column_config.TextColumn("Idol", width="medium"),
-                    "total": st.column_config.NumberColumn("Total", width="small"),
-                    "possuo": st.column_config.NumberColumn("Tenho", width="small"),
-                    "categoria": st.column_config.TextColumn("Categoria", width="small"),
-                    "prioridade": st.column_config.TextColumn("Prioridade", width="small"),
+                    "grupo": st.column_config.TextColumn(
+                        texto_importacao("col_grupo"), width="medium"
+                    ),
+                    "idol": st.column_config.TextColumn(
+                        texto_importacao("col_idol"), width="medium"
+                    ),
+                    "total": st.column_config.NumberColumn(
+                        texto_importacao("col_total"), width="small"
+                    ),
+                    "possuo": st.column_config.NumberColumn(
+                        texto_importacao("col_possuo"), width="small"
+                    ),
+                    "categoria": st.column_config.TextColumn(
+                        texto_importacao("col_categoria"), width="small"
+                    ),
+                    "prioridade": st.column_config.TextColumn(
+                        texto_importacao("col_prioridade"), width="small"
+                    ),
                 },
             )
-            if st.button("Importar CSV", type="primary", width="stretch"):
-                run_many(UPSERT, [(bot_imp, r.grupo, r.idol, r.categoria, r.prioridade,
-                                   int(r.total), int(r.possuo)) for r in prev.itertuples()])
-                st.success(f"{len(prev)} linhas importadas para {bot_imp}!")
+            if st.button(
+                texto_importacao("importar"), type="primary", width="stretch"
+            ):
+                run_many(
+                    UPSERT,
+                    [
+                        (
+                            bot_imp,
+                            r.grupo,
+                            r.idol,
+                            traducoes_cadastro["categorias"].get(
+                                r.categoria, r.categoria
+                            ),
+                            traducoes_cadastro["prioridades"].get(
+                                r.prioridade, r.prioridade
+                            ),
+                            int(r.total),
+                            int(r.possuo),
+                        )
+                        for r in previa_exibicao.itertuples()
+                    ],
+                )
+                st.success(
+                    texto_importacao(
+                        "importados", quantidade=len(prev), bot=bot_imp
+                    )
+                )
         except Exception as e:
             st.error(str(e))
