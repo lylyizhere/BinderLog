@@ -104,18 +104,28 @@ a {color: var(--accent)}
     font-size:22px;
     transition:background .15s ease, color .15s ease;
 }
-.st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"] {
+.st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) {
+    flex-wrap:nowrap !important;
+    align-items:center;
+    gap:.65rem !important;
+}
+.st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) > [data-testid="stColumn"]:last-child {
+    flex:0 0 84px !important;
+    width:84px !important;
+    min-width:84px !important;
+}
+.st-key-app_header [data-testid="stColumn"]:nth-child(3) [data-testid="stHorizontalBlock"] {
     flex-wrap:nowrap !important;
     justify-content:flex-end;
     align-items:center;
     gap:8px !important;
 }
-.st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+.st-key-app_header [data-testid="stColumn"]:nth-child(3) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
     flex:0 0 42px !important;
     width:42px !important;
     min-width:42px !important;
 }
-.st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+.st-key-app_header [data-testid="stColumn"]:nth-child(3) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
     flex:0 0 34px !important;
     width:34px !important;
     min-width:34px !important;
@@ -513,23 +523,23 @@ button p {color:inherit !important}
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex:1 1 100% !important; width:100% !important; min-width:100% !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(.ttl) {
         flex-wrap:wrap !important; gap:.5rem !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"] {
-        width:auto !important; min-width:0 !important
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(.ttl) > [data-testid="stColumn"] {
+        flex:1 1 100% !important; width:100% !important; min-width:100% !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(1) {
-        order:0; flex:1 1 calc(100% - 104px) !important
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) {
+        flex-wrap:nowrap !important; gap:.5rem !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(2) {
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) > [data-testid="stColumn"]:first-child {
         display:none
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(3) {
-        order:3; flex:1 1 100% !important; width:100% !important; min-width:100% !important
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) > [data-testid="stColumn"]:nth-child(2) {
+        flex:1 1 auto !important; width:auto !important; min-width:0 !important
     }
-    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(4) {
-        order:1; flex:0 0 96px !important
+    .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) > [data-testid="stColumn"]:last-child {
+        flex:0 0 84px !important; width:84px !important; min-width:84px !important
     }
     [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] {
         flex-wrap:wrap !important; gap:.7rem !important
