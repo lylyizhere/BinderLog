@@ -509,10 +509,10 @@ def buscar_perfil_kprofiles(
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def _traduzir_trecho_ptbr(trecho):
+def _traduzir_trecho(trecho, langpair):
     resposta = _limitador_mymemory().get(
         "https://api.mymemory.translated.net/get",
-        params={"q": trecho, "langpair": "en|pt-BR"},
+        params={"q": trecho, "langpair": langpair},
         headers={
             "User-Agent": "BinderLog/1.0 (+https://github.com/lylyizhere/BinderLog)"
         },
@@ -536,7 +536,7 @@ def _traduzir_trecho_ptbr(trecho):
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def traduzir_descricao_ptbr(texto):
+def traduzir_descricao(texto, langpair):
     if not texto.strip():
         raise ValueError("A descrição para tradução está vazia.")
     paragrafos = [paragrafo.strip() for paragrafo in texto.split("\n\n") if paragrafo.strip()]
@@ -559,9 +559,13 @@ def traduzir_descricao_ptbr(texto):
         if trecho_atual:
             trechos.append(trecho_atual)
         paragrafos_traduzidos.append(
-            " ".join(_traduzir_trecho_ptbr(trecho) for trecho in trechos)
+            " ".join(_traduzir_trecho(trecho, langpair) for trecho in trechos)
         )
     return "\n\n".join(paragrafos_traduzidos)
+
+
+def traduzir_descricao_ptbr(texto):
+    return traduzir_descricao(texto, "en|pt-BR")
 
 
 def buscar_imagens_kprofiles(tipo, base, grupo, nome_busca, termos_busca,
