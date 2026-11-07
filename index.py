@@ -897,12 +897,15 @@ def seletor_idioma():
         IDIOMAS[1]: "English",
         IDIOMAS[2]: "Español",
     }
-    st.selectbox(
-        f'🌐 {texto_navegacao("label_idioma")}',
+    st.segmented_control(
+        texto_navegacao("label_idioma"),
         options=IDIOMAS,
         format_func=nomes_idiomas.get,
+        selection_mode="single",
         key="idioma_interface",
+        label_visibility="collapsed",
         width="stretch",
+        wrap=True,
     )
 
 
@@ -2146,7 +2149,7 @@ with st.container(key="app_header"):
         c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
         c_foto.markdown(avatar_html, unsafe_allow_html=True)
         with c_menu.popover(
-            "⚙",
+            "⋮",
             help=texto_navegacao("configuracoes_conta"),
             key="account_settings",
             width="content",
