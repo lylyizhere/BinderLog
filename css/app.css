@@ -104,6 +104,22 @@ a {color: var(--accent)}
     font-size:22px;
     transition:background .15s ease, color .15s ease;
 }
+.st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"] {
+    flex-wrap:nowrap !important;
+    justify-content:flex-end;
+    align-items:center;
+    gap:8px !important;
+}
+.st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+    flex:0 0 42px !important;
+    width:42px !important;
+    min-width:42px !important;
+}
+.st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+    flex:0 0 34px !important;
+    width:34px !important;
+    min-width:34px !important;
+}
 .st-key-account_settings_open button:hover {
     background:var(--accent-soft);
     color:var(--accent);
@@ -510,16 +526,10 @@ button p {color:inherit !important}
         display:none
     }
     .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(3) {
-        order:3; flex:2 1 58% !important
+        order:3; flex:1 1 100% !important; width:100% !important; min-width:100% !important
     }
     .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(4)) > [data-testid="stColumn"]:nth-child(4) {
         order:1; flex:0 0 96px !important
-    }
-    .st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) {
-        flex-wrap:nowrap !important; gap:.25rem !important
-    }
-    .st-key-app_header [data-testid="stColumn"]:nth-child(4) [data-testid="stHorizontalBlock"]:not(:has(> [data-testid="stColumn"]:nth-child(3))) > [data-testid="stColumn"] {
-        flex:0 0 auto !important; width:auto !important; min-width:0 !important
     }
     [class*="st-key-cards_row_"] [data-testid="stHorizontalBlock"] {
         flex-wrap:wrap !important; gap:.7rem !important
