@@ -5,6 +5,7 @@ Acompanhe o progresso da sua coleção de cards de K-pop nos bots do Discord **G
 ## O que o app faz
 
 - Cadastro de idols por bot, com total de cartas, quantidade que você tem e percentual de progresso.
+- Metas personalizadas de cartas para cada idol ou grupo, com acompanhamento do progresso nos detalhes do card.
 - Prioridade (Alta, Média ou Baixa) e categoria (Grupo, Solo ou Outro).
 - Cadastro de eras com nome, sigla e de 1 a 3 diamantes.
 - Cadastro de eventos com sigla automática, marcadores e ícone sugerido pelo nome.
