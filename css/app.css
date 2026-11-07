@@ -319,12 +319,16 @@ button p {color:inherit !important}
 }
 
 [data-testid="stPopoverBody"] {
-    min-width:min(300px, calc(100vw - 2rem));
+    box-sizing:border-box;
+    width:min(340px, calc(100vw - 2rem));
+    padding:1.15rem !important;
     border:1px solid var(--line-strong) !important;
-    border-radius:14px !important;
-    background:var(--panel-solid) !important;
+    border-radius:20px !important;
+    background:
+        radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 55%),
+        var(--panel-solid) !important;
     color:var(--text) !important;
-    box-shadow:0 14px 36px rgba(16,42,67,.2) !important;
+    box-shadow:0 20px 55px rgba(0,0,0,.32), 0 0 0 1px rgba(66,217,245,.04) !important;
 }
 [data-testid="stPopoverBody"] [data-testid="stRadioOption"] {
     border-radius:9px;
