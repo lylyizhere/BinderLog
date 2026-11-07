@@ -260,6 +260,10 @@ TRADUCOES_NAVEGACAO = {
             "eventos_contagem": "{quantidade} eventos",
             "diamantes_contagem": "{quantidade} 💎",
             "resumo_registros": "{eras} · {diamantes} · {eventos} · {marcadores} {rotulo_marcadores}",
+            "meta_titulo": "Meta de cards",
+            "meta_descricao": "Defina quantas cartas você quer colecionar para este idol ou grupo.",
+            "meta_progresso": "{possuidas} de {meta} cartas da meta ({percentual:.0f}%)",
+            "salvar_meta": "Salvar meta",
         },
         "English": {
             "card_url_invalido": "The card ID in the URL is invalid.",
@@ -312,6 +316,10 @@ TRADUCOES_NAVEGACAO = {
             "eventos_contagem": "{quantidade} events",
             "diamantes_contagem": "{quantidade} 💎",
             "resumo_registros": "{eras} · {diamantes} · {eventos} · {marcadores} {rotulo_marcadores}",
+            "meta_titulo": "Card goal",
+            "meta_descricao": "Set how many cards you want to collect for this idol or group.",
+            "meta_progresso": "{possuidas} of {meta} goal cards ({percentual:.0f}%)",
+            "salvar_meta": "Save goal",
         },
         "Español": {
             "card_url_invalido": "El identificador de la tarjeta en la URL no es válido.",
@@ -364,6 +372,10 @@ TRADUCOES_NAVEGACAO = {
             "eventos_contagem": "{quantidade} eventos",
             "diamantes_contagem": "{quantidade} 💎",
             "resumo_registros": "{eras} · {diamantes} · {eventos} · {marcadores} {rotulo_marcadores}",
+            "meta_titulo": "Meta de tarjetas",
+            "meta_descricao": "Define cuántas tarjetas quieres coleccionar de este ídolo o grupo.",
+            "meta_progresso": "{possuidas} de {meta} tarjetas de la meta ({percentual:.0f} %)",
+            "salvar_meta": "Guardar meta",
         },
     },
     "autenticacao": {
@@ -927,6 +939,32 @@ def mostrar_como_usar():
     dialog_ajuda()
 
 
+def mostrar_configuracoes_conta(nome, email, avatar_html):
+    @st.dialog(
+        texto_navegacao("configuracoes_conta"),
+        width="small",
+        position="center",
+    )
+    def dialog_configuracoes():
+        st.markdown(
+            '<div class="account-menu__identity">'
+            f'{avatar_html}<div><strong>{esc(nome)}</strong>'
+            f'<span>{esc(email)}</span></div></div>',
+            unsafe_allow_html=True,
+        )
+        st.caption(texto_navegacao("label_idioma"))
+        seletor_idioma()
+        st.divider()
+        if st.button(
+            texto_navegacao("sair_conta"),
+            key="account_dialog_logout",
+            width="stretch",
+        ):
+            st.logout()
+
+    dialog_configuracoes()
+
+
 def autenticar_usuario():
     if not st.user.is_logged_in:
         st.markdown(
@@ -1073,13 +1111,15 @@ def init_db():
         image_url TEXT,
         descricao_pt TEXT,
         descricao_url TEXT,
-        descricao_versao INTEGER NOT NULL DEFAULT 0)""")
+        descricao_versao INTEGER NOT NULL DEFAULT 0,
+        meta INTEGER)""")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS owner_id TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS image_url TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_pt TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_url TEXT")
     run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS descricao_versao "
         "INTEGER NOT NULL DEFAULT 0")
+    run("ALTER TABLE colecao ADD COLUMN IF NOT EXISTS meta INTEGER")
     run(
         "ALTER TABLE colecao ALTER COLUMN owner_id "
         "SET DEFAULT current_setting('binderlog.user_sub')"
@@ -1800,7 +1840,7 @@ def dialog_adicionar():
 # ---------------------------------------------------------------- Dados
 df_all = q(
     "SELECT id, bot, grupo, idol, categoria, prioridade, total, possuo, image_url, "
-    "descricao_pt, descricao_url, descricao_versao FROM colecao"
+    "descricao_pt, descricao_url, descricao_versao, meta FROM colecao"
 )
 df_all["progresso"] = (df_all["possuo"] / df_all["total"].where(df_all["total"] > 0) * 100).fillna(0)
 df_all["faltam"] = df_all["total"] - df_all["possuo"]
@@ -1832,6 +1872,37 @@ if card_selecionado:
         st.rerun()
     st.title(card["grupo"] if card["idol"] == GRUPO_COMPLETO else card["idol"])
     st.caption(f'{card["grupo"]} · {texto_detalhe("bot")} {card["bot"]}')
+
+    meta_atual = (
+        int(card["total"]) if pd.isna(card["meta"]) else int(card["meta"])
+    )
+    progresso_meta = pct(int(card["possuo"]), meta_atual)
+    st.subheader(texto_detalhe("meta_titulo"))
+    st.caption(texto_detalhe("meta_descricao"))
+    st.progress(
+        min(progresso_meta, 100) / 100,
+        text=texto_detalhe(
+            "meta_progresso",
+            possuidas=int(card["possuo"]),
+            meta=meta_atual,
+            percentual=progresso_meta,
+        ),
+    )
+    with st.form(f"form_meta_{int(card_selecionado)}"):
+        nova_meta = st.number_input(
+            texto_detalhe("meta_titulo"),
+            min_value=1,
+            value=max(1, meta_atual),
+            step=1,
+            key=f"meta_{int(card_selecionado)}",
+        )
+        salvar_meta = st.form_submit_button(texto_detalhe("salvar_meta"))
+    if salvar_meta:
+        run(
+            "UPDATE colecao SET meta=? WHERE id=?",
+            (int(nova_meta), int(card_selecionado)),
+        )
+        st.rerun()
 
     descricao_card = card["descricao_pt"]
     fonte_descricao = card["descricao_url"]
@@ -2148,26 +2219,13 @@ with st.container(key="app_header"):
     with c_user:
         c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
         c_foto.markdown(avatar_html, unsafe_allow_html=True)
-        with c_menu.popover(
+        if c_menu.button(
             "⋮",
             help=texto_navegacao("configuracoes_conta"),
-            key="account_settings",
-            width=340,
+            key="account_settings_open",
+            width="stretch",
         ):
-            st.markdown(
-                '<div class="account-menu__identity">'
-                f'{avatar_html}<div><strong>{esc(nome_conta)}</strong>'
-                f'<span>{esc(email_conta)}</span></div></div>',
-                unsafe_allow_html=True,
-            )
-            seletor_idioma()
-            st.divider()
-            if st.button(
-                texto_navegacao("sair_conta"),
-                key="logout_button",
-                width="stretch",
-            ):
-                st.logout()
+            mostrar_configuracoes_conta(nome_conta, email_conta, avatar_html)
 
 tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(
     [
