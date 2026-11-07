@@ -2135,8 +2135,8 @@ if card_selecionado:
 # ---------------------------------------------------------------- Cabeçalho
 tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
 with st.container(key="app_header"):
-    c_tit, c_pill, c_btn, c_user = st.columns(
-        [4.7, 2.4, 2.4, 1.1], vertical_alignment="center"
+    c_tit, c_acoes = st.columns(
+        [1, 1.45], vertical_alignment="center"
     )
     c_tit.markdown(
         '<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
@@ -2144,14 +2144,6 @@ with st.container(key="app_header"):
         '</div></div>',
         unsafe_allow_html=True,
     )
-    c_pill.markdown(
-        f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} '
-        f'{esc(texto_navegacao("colecao_completa"))}</div>',
-                    unsafe_allow_html=True)
-    if c_btn.button(
-        texto_navegacao("adicionar_idol_bot"), type="primary", width="stretch"
-    ):
-        dialog_adicionar()
     nome_conta = st.session_state["authenticated_user_name"]
     email_conta = st.session_state["authenticated_user_email"]
     foto_conta = st.session_state.get("authenticated_user_picture", "")
@@ -2171,16 +2163,29 @@ with st.container(key="app_header"):
             'font-weight:700;">'
             f'{iniciais}</div>'
         )
-    with c_user:
-        c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
-        c_foto.markdown(avatar_html, unsafe_allow_html=True)
-        if c_menu.button(
-            "⋮",
-            help=texto_navegacao("configuracoes_conta"),
-            key="account_settings_open",
-            width="stretch",
+    with c_acoes:
+        c_pill, c_btn, c_user = st.columns(
+            [1, 1, 0.34], vertical_alignment="center"
+        )
+        c_pill.markdown(
+            f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} '
+            f'{esc(texto_navegacao("colecao_completa"))}</div>',
+            unsafe_allow_html=True,
+        )
+        if c_btn.button(
+            texto_navegacao("adicionar_idol_bot"), type="primary", width="stretch"
         ):
-            mostrar_configuracoes_conta(nome_conta, email_conta, avatar_html)
+            dialog_adicionar()
+        with c_user:
+            c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
+            c_foto.markdown(avatar_html, unsafe_allow_html=True)
+            if c_menu.button(
+                "⋮",
+                help=texto_navegacao("configuracoes_conta"),
+                key="account_settings_open",
+                width="stretch",
+            ):
+                mostrar_configuracoes_conta(nome_conta, email_conta, avatar_html)
 
 tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(
     [
