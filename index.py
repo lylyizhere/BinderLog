@@ -897,15 +897,12 @@ def seletor_idioma():
         IDIOMAS[1]: "English",
         IDIOMAS[2]: "Español",
     }
-    st.segmented_control(
-        texto_navegacao("label_idioma"),
+    st.selectbox(
+        f'🌐 {texto_navegacao("label_idioma")}',
         options=IDIOMAS,
         format_func=nomes_idiomas.get,
-        selection_mode="single",
         key="idioma_interface",
-        label_visibility="collapsed",
         width="stretch",
-        wrap=True,
     )
 
 
@@ -2160,7 +2157,6 @@ with st.container(key="app_header"):
                 f'<span>{esc(email_conta)}</span></div></div>',
                 unsafe_allow_html=True,
             )
-            st.caption(texto_navegacao("label_idioma"))
             seletor_idioma()
             st.divider()
             if st.button(
