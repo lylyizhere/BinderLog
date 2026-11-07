@@ -2141,59 +2141,74 @@ if card_selecionado:
     st.stop()
 
 # ---------------------------------------------------------------- Cabeçalho
-tot_g, pos_g = int(df_all["total"].sum()), int(df_all["possuo"].sum())
-with st.container(key="app_header"):
-    c_tit, c_acoes = st.columns(
-        [1, 1.45], vertical_alignment="center"
-    )
-    c_tit.markdown(
-        '<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
-        f'<span class="mut">{esc(texto_navegacao("colecao_bots_discord"))}</span>'
-        '</div></div>',
-        unsafe_allow_html=True,
-    )
-    nome_conta = st.session_state["authenticated_user_name"]
-    email_conta = st.session_state["authenticated_user_email"]
-    foto_conta = st.session_state.get("authenticated_user_picture", "")
-    if foto_conta.startswith("https://"):
-        avatar_html = (
-            f'<img src="{esc(foto_conta, quote=True)}" '
-            f'alt="{esc(texto_navegacao("foto_perfil"), quote=True)}" '
-            'style="width:42px;height:42px;border-radius:50%;object-fit:cover;'
-            'display:block;">'
+@st.fragment
+def renderizar_cabecalho(tot_g, pos_g, nome_conta, email_conta, foto_conta):
+    with st.container(key="app_header"):
+        c_tit, c_acoes = st.columns(
+            [1, 1.45], vertical_alignment="center"
         )
-    else:
-        iniciais = esc("".join(parte[0] for parte in nome_conta.split()[:2]).upper())
-        avatar_html = (
-            f'<div aria-label="{esc(texto_navegacao("foto_perfil_indisponivel"), quote=True)}" '
-            'style="width:42px;height:42px;border-radius:50%;background:#dbeafe;'
-            'color:#1e3a8a;display:flex;align-items:center;justify-content:center;'
-            'font-weight:700;">'
-            f'{iniciais}</div>'
-        )
-    with c_acoes:
-        c_pill, c_btn, c_user = st.columns(
-            [1, 1, 0.34], vertical_alignment="center"
-        )
-        c_pill.markdown(
-            f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} '
-            f'{esc(texto_navegacao("colecao_completa"))}</div>',
+        c_tit.markdown(
+            '<div class="ttl"><div class="logo">💿</div><div><b>BinderLog</b><br>'
+            f'<span class="mut">{esc(texto_navegacao("colecao_bots_discord"))}</span>'
+            '</div></div>',
             unsafe_allow_html=True,
         )
-        if c_btn.button(
-            texto_navegacao("adicionar_idol_bot"), type="primary", width="stretch"
-        ):
-            dialog_adicionar()
-        with c_user:
-            c_foto, c_menu = st.columns([1.1, 0.9], vertical_alignment="center")
-            c_foto.markdown(avatar_html, unsafe_allow_html=True)
-            if c_menu.button(
-                "⋮",
-                help=texto_navegacao("configuracoes_conta"),
-                key="account_settings_open",
+        if foto_conta.startswith("https://"):
+            avatar_html = (
+                f'<img src="{esc(foto_conta, quote=True)}" '
+                f'alt="{esc(texto_navegacao("foto_perfil"), quote=True)}" '
+                'style="width:42px;height:42px;border-radius:50%;object-fit:cover;'
+                'display:block;">'
+            )
+        else:
+            iniciais = esc(
+                "".join(parte[0] for parte in nome_conta.split()[:2]).upper()
+            )
+            avatar_html = (
+                f'<div aria-label="{esc(texto_navegacao("foto_perfil_indisponivel"), quote=True)}" '
+                'style="width:42px;height:42px;border-radius:50%;background:#dbeafe;'
+                'color:#1e3a8a;display:flex;align-items:center;justify-content:center;'
+                'font-weight:700;">'
+                f'{iniciais}</div>'
+            )
+        with c_acoes:
+            c_pill, c_btn, c_user = st.columns(
+                [1, 1, 0.34], vertical_alignment="center"
+            )
+            c_pill.markdown(
+                f'<div class="pill">{ring(pct(pos_g, tot_g), sm=True)} '
+                f'{esc(texto_navegacao("colecao_completa"))}</div>',
+                unsafe_allow_html=True,
+            )
+            if c_btn.button(
+                texto_navegacao("adicionar_idol_bot"),
+                type="primary",
                 width="stretch",
             ):
-                mostrar_configuracoes_conta(nome_conta, email_conta, avatar_html)
+                dialog_adicionar()
+            with c_user:
+                c_foto, c_menu = st.columns(
+                    [1.1, 0.9], vertical_alignment="center"
+                )
+                c_foto.markdown(avatar_html, unsafe_allow_html=True)
+                if c_menu.button(
+                    "⋮",
+                    help=texto_navegacao("configuracoes_conta"),
+                    key="account_settings_open",
+                    width="stretch",
+                ):
+                    mostrar_configuracoes_conta(
+                        nome_conta, email_conta, avatar_html
+                    )
+
+
+renderizar_cabecalho(
+    int(df_all["total"].sum()),
+    int(df_all["possuo"].sum()),
+    st.session_state["authenticated_user_name"],
+    st.session_state["authenticated_user_email"],
+    st.session_state.get("authenticated_user_picture", ""),
+)
 
 tab_painel, tab_tabela, tab_fotos, tab_imp = st.tabs(
     [
