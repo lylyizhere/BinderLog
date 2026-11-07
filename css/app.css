@@ -113,6 +113,9 @@ a {color: var(--accent)}
 .st-key-app_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(3)) > [data-testid="stColumn"] {
     align-self:center;
 }
+.st-key-app_header [data-testid="stMarkdownContainer"]:has(.pill) {
+    margin-bottom:0 !important;
+}
 .st-key-app_header [data-testid="stBaseButton-primary"] {
     height:48px;
     min-height:48px;
@@ -142,6 +145,7 @@ a {color: var(--accent)}
     display:flex;
     height:48px;
     align-items:center;
+    margin-bottom:0 !important;
 }
 .st-key-app_header [data-testid="stColumn"]:nth-child(3) [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
     flex:0 0 34px !important;
